@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser, useClerk } from '@clerk/clerk-react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import './pizza-animations.css';
 import PizzaTruckAnimation from './PizzaTruckAnimation';
@@ -85,6 +85,7 @@ const PizzaTruckPage: React.FC = () => {
   const recalculateScheduleMut = useMutation(api.pizza.recalculateSchedule);
   const createAdHocPaymentMut = useMutation(api.pizza.createAdHocPayment);
   const migratePaymentLabelsMut = useMutation(api.pizza.migratePaymentLabels);
+  const sendSmsToVendorAct = useAction(api.pizza.sendSmsToVendor);
 
   // ===== CHARGEMENT =====
   if (!isLoaded) {
@@ -293,6 +294,20 @@ const PizzaTruckPage: React.FC = () => {
       `📅 Échéance : ${new Date(payment.dateEcheance).toLocaleDateString('fr-FR')}\n\n` +
       `👉 Connecte-toi ici pour signer ce versement :\n${window.location.origin}/pizza-truck?sign=${payment._id}`;
     setWhatsappModal({ phone: vendeurPhone, message });
+  };
+
+  // Envoi du SMS au vendeur via le worker Pushbullet (qui relaie vers MacroDroid).
+  // Le message est identique au format WhatsApp, mais envoyé en vrai SMS
+  // (pas via wa.me). Utile quand Francky n'a pas WhatsApp ou préfère les SMS.
+  const handleSendSms = async (paymentId: string) => {
+    if (!userEmail) return;
+    if (!confirm(`Envoyer un SMS à ${cfg.vendeurPhone || 'Francky'} avec le lien de signature ?`)) return;
+    try {
+      await sendSmsToVendorAct({ userEmail, paymentId: paymentId as any });
+      alert('✅ SMS envoyé à ' + (cfg.vendeurPhone || 'Francky') + ' !');
+    } catch (e) {
+      alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
+    }
   };
 
   /**
@@ -587,6 +602,7 @@ const PizzaTruckPage: React.FC = () => {
                       onSign={() => setShowSignatureModal(p._id)}
                       onCancel={() => handleCancel(p._id)}
                       onWhatsapp={() => openWhatsapp(p)}
+                      onSms={() => handleSendSms(p._id)}
                     />
                   ))}
                 </ul>
@@ -660,6 +676,7 @@ const PizzaTruckPage: React.FC = () => {
                   onSign={() => setShowSignatureModal(p._id)}
                   onCancel={() => handleCancel(p._id)}
                   onWhatsapp={() => openWhatsapp(p)}
+                  onSms={() => handleSendSms(p._id)}
                 />
               ))}
               {payments.filter((p) => p.type !== 'ponctuel').length === 0 && (
@@ -827,13 +844,15 @@ const PaymentRow: React.FC<{
   onSign: () => void;
   onCancel: () => void;
   onWhatsapp: () => void;
-}> = ({ payment, isAcheteur, viewAsVendeur, onMarkPaid, onSign, onCancel, onWhatsapp }) => {
+  onSms: () => void;
+}> = ({ payment, isAcheteur, viewAsVendeur, onMarkPaid, onSign, onCancel, onWhatsapp, onSms }) => {
   // Actions effectives (basées sur la vue effective)
   const canMarkPaid = !viewAsVendeur && isAcheteur;
   // En clair : on peut signer si on est en vue vendeur (réelle ou preview)
   const canShowSignButton = viewAsVendeur;
   const canCancel = !viewAsVendeur && isAcheteur;
   const canWhatsapp = !viewAsVendeur && isAcheteur;
+  const canSms = !viewAsVendeur && isAcheteur;
   const isPaid = payment.status === 'verse' || payment.signature;
   const isSigned = !!payment.signature;
   const isCancelled = payment.status === 'annule';
@@ -971,6 +990,23 @@ const PaymentRow: React.FC<{
           >
             <MessageCircle className="w-3.5 h-3.5" />
             {isPaid ? 'Envoyer à signer' : 'WhatsApp'}
+          </button>
+        )}
+        {/* Bouton "Envoyer par SMS" — alternative au WhatsApp. Envoie un vrai SMS
+            via le worker Pushbullet (qui relaie vers MacroDroid sur le téléphone
+            Android). Utile si Francky n'a pas WhatsApp ou préfère les SMS. */}
+        {!isCancelled && !isSigned && canSms && (
+          <button
+            onClick={onSms}
+            className="text-xs px-2 py-1.5 rounded-md font-medium inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-800"
+            title={
+              isPaid
+                ? "Envoyer (ou renvoyer) le lien de signature à Francky par SMS via MacroDroid"
+                : "Envoyer ce versement à signer par SMS via MacroDroid"
+            }
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            SMS
           </button>
         )}
         {canCancel && !isSigned && !isCancelled && (

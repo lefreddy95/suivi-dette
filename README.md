@@ -41,11 +41,12 @@ git push origin main  # Netlify auto-deploys
 
 ## Variables d'env Netlify
 
-| Variable | Valeur |
-|---|---|
-| `VITE_CONVEX_URL` | `https://affable-cod-552.eu-west-1.convex.cloud` |
-| `VITE_CLERK_PUBLISHABLE_KEY` | (même clé que lobry-sms-brocante) |
-| `CONVEX_DEPLOY_KEY` | (clé prod, même projet Convex) |
+| Variable | Type | Valeur |
+|---|---|---|
+| `VITE_CONVEX_URL` | build-time (Vite) | `https://affable-cod-552.eu-west-1.convex.cloud` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | build-time (Vite) | (même clé que lobry-sms-brocante) |
+| `CONVEX_DEPLOY_KEY` | runtime (Convex) | (clé prod, même projet Convex) |
+| `PUSHBULLET_WORKER_URL` | runtime (Convex) | `https://admin.ableiges.com` (worker Pushbullet qui envoie via MacroDroid) |
 
 ## Routes
 

@@ -713,9 +713,7 @@ export const getWhatsappLink = query({
     const p = await ctx.db.get(args.paymentId);
     if (!config || !p) return null;
     // Label : "P1" pour les ponctuels, "n°1" pour les mensuels
-    const label = p.type === "ponctuel"
-      ? `Versement P${p.ponctuelOrdre ?? "?"}`
-      : `Versement n°${p.numero}`;
+    const label = `Versement n°${p.numero}`;
     const message = `🍕 *${config.nomCamion}* — ${label}\n\n` +
       `Montant : *${p.montant} €*\n` +
       `Échéance : ${new Date(p.dateEcheance).toLocaleDateString("fr-FR")}\n\n` +
@@ -724,5 +722,84 @@ export const getWhatsappLink = query({
       message,
       phoneNumber: config.vendeurPhone || null,  // null si pas configuré
     };
+  },
+});
+
+// === ENVOI SMS VIA WORKER PUSHBULLET (qui relaie vers MacroDroid) ===
+// Le worker Pushbullet (déployé sur admin.ableiges.com) expose un endpoint
+// HTTP /send-sms. Quand on l'appelle avec { to, body }, il envoie le SMS
+// via le téléphone Android connecté à MacroDroid. C'est le même système
+// que dans lobry-sms-brocante — on évite de dupliquer la logique d'envoi
+// en appelant directement le worker.
+//
+// IMPORTANT : configurer PUSHBULLET_WORKER_URL dans .env (et Netlify env vars).
+// Exemple : https://admin.ableiges.com
+export const sendSmsToVendor = action({
+  args: {
+    userEmail: v.string(),
+    paymentId: v.id("pizzaPayments"),
+  },
+  handler: async (ctx, args) => {
+    checkEmail(args.userEmail, "acheteur");
+    const config = await ctx.db.query("pizzaConfig").first();
+    const p = await ctx.db.get(args.paymentId);
+    if (!config) throw new ConvexError("Config non initialisée");
+    if (!p) throw new ConvexError("Paiement introuvable");
+    if (!config.vendeurPhone) {
+      throw new ConvexError("Numéro de téléphone du vendeur non configuré. Va dans Paramètres.");
+    }
+    const workerUrl = process.env.PUSHBULLET_WORKER_URL;
+    if (!workerUrl) {
+      throw new ConvexError("PUSHBULLET_WORKER_URL non configuré. Contacte l'admin.");
+    }
+    // Construit le message (même format que WhatsApp)
+    const message = `🍕 *${config.nomCamion}* — Versement n°${p.numero}\n\n` +
+      `Montant : *${p.montant} €*\n` +
+      `Échéance : ${new Date(p.dateEcheance).toLocaleDateString("fr-FR")}\n\n` +
+      `👉 Connecte-toi ici pour signer ce versement :\n${process.env.CONVEX_SITE_URL || "https://lobry.netlify.app"}/pizza-truck?sign=${p._id}`;
+    // Appel HTTP au worker Pushbullet
+    const response = await fetch(`${workerUrl}/send-sms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: config.vendeurPhone,
+        body: message,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new ConvexError(`Erreur worker (${response.status}): ${errText}`);
+    }
+    // Audit
+    await ctx.runMutation(api.pizza.logSmsSent, {
+      userEmail: args.userEmail,
+      paymentId: args.paymentId,
+      to: config.vendeurPhone,
+    });
+    return { success: true, to: config.vendeurPhone, message };
+  },
+});
+
+// Helper mutation pour l'audit (appelé par sendSmsToVendor)
+export const logSmsSent = mutation({
+  args: {
+    userEmail: v.string(),
+    paymentId: v.id("pizzaPayments"),
+    to: v.string(),
+  },
+  handler: async (ctx, args) => {
+    checkEmail(args.userEmail, "acheteur");
+    const now = Date.now();
+    await ctx.db.insert("pizzaAuditLog", {
+      action: "sms_sent_to_vendor",
+      userEmail: args.userEmail,
+      userRole: "acheteur",
+      paymentId: args.paymentId,
+      details: JSON.stringify({ to: args.to }),
+      ipAddress: getClientIp(ctx),
+      userAgent: getUserAgent(ctx),
+      timestamp: now,
+    });
+    return { success: true };
   },
 });
