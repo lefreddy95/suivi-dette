@@ -18,10 +18,10 @@ export default defineConfig({
 
       // Manifest PWA généré à partir de cette config
       manifest: {
-        name: 'Gestionnaire SMS IA - Ableiges',
-        short_name: 'SMS IA',
+        name: 'Suivi-dette — Camion pizza',
+        short_name: 'Suivi-dette',
         description:
-          "Application de gestion intelligente des SMS avec IA pour les brocantes d'Ableiges",
+          'Suivi du paiement du camion pizza (Freddy → Francky) — mensualités de 500 €',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
