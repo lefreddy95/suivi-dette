@@ -9,6 +9,7 @@ import {
   RefreshCw, Settings, User, Calendar, Wrench,
   X, Save, MessageCircle, MessageSquare, ShieldCheck,
   ExternalLink, FileSignature, LogOut, Eye, Camera, ArrowLeft,
+  Trash2,
 } from 'lucide-react';
 import { SignIn } from '@clerk/clerk-react';
 
@@ -102,6 +103,7 @@ const PizzaTruckPage: React.FC = () => {
   const markAsPaidMut = useMutation(api.pizza.markAsPaid);
   const initiateSignatureMut = useMutation(api.pizza.initiateSignature);
   const cancelPaymentMut = useMutation(api.pizza.cancelPayment);
+  const deletePaymentMut = useMutation(api.pizza.deletePayment);
   const recalculateScheduleMut = useMutation(api.pizza.recalculateSchedule);
   const createAdHocPaymentMut = useMutation(api.pizza.createAdHocPayment);
   const migratePaymentLabelsMut = useMutation(api.pizza.migratePaymentLabels);
@@ -265,6 +267,25 @@ const PizzaTruckPage: React.FC = () => {
     if (!raison) return;
     try {
       await cancelPaymentMut({ userEmail, paymentId, raison });
+    } catch (e) {
+      alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
+    }
+  };
+  const handleDelete = async (paymentId: string) => {
+    if (!userEmail) return;
+    const ok = window.confirm(
+      'Supprimer DÉFINITIVEMENT cette échéance ?\n\n' +
+      '⚠️ Cette action est IRRÉVERSIBLE :\n' +
+      '• La ligne disparaît de la base de données\n' +
+      '• Les autres paiements sont renumérotés (n°1, 2, 3...)\n' +
+      '• Une trace reste dans l\'audit log (mais le paiement n\'existe plus)\n\n' +
+      'Si tu veux juste la marquer comme annulée, utilise le bouton ✕ à la place.\n\n' +
+      'Continuer ?'
+    );
+    if (!ok) return;
+    try {
+      const res = await deletePaymentMut({ userEmail, paymentId });
+      alert(`Échéance n°${res.deletedNumero} supprimée. ${res.renumbered} paiement(s) renuméroté(s).`);
     } catch (e) {
       alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
     }
@@ -658,6 +679,7 @@ const PizzaTruckPage: React.FC = () => {
                       onMarkPaid={() => handleMarkPaid(p._id)}
                       onSign={() => setShowSignatureModal(p._id)}
                       onCancel={() => handleCancel(p._id)}
+                      onDelete={() => handleDelete(p._id)}
                       onWhatsapp={() => openWhatsapp(p)}
                       onSms={() => handleSendSms(p._id)}
                     />
@@ -732,6 +754,7 @@ const PizzaTruckPage: React.FC = () => {
                   onMarkPaid={() => handleMarkPaid(p._id)}
                   onSign={() => setShowSignatureModal(p._id)}
                   onCancel={() => handleCancel(p._id)}
+                  onDelete={() => handleDelete(p._id)}
                   onWhatsapp={() => openWhatsapp(p)}
                   onSms={() => handleSendSms(p._id)}
                 />
@@ -900,14 +923,18 @@ const PaymentRow: React.FC<{
   onMarkPaid: () => void;
   onSign: () => void;
   onCancel: () => void;
+  onDelete: () => void;
   onWhatsapp: () => void;
   onSms: () => void;
-}> = ({ payment, isAcheteur, viewAsVendeur, onMarkPaid, onSign, onCancel, onWhatsapp, onSms }) => {
+}> = ({ payment, isAcheteur, viewAsVendeur, onMarkPaid, onSign, onCancel, onDelete, onWhatsapp, onSms }) => {
   // Actions effectives (basées sur la vue effective)
   const canMarkPaid = !viewAsVendeur && isAcheteur;
   // En clair : on peut signer si on est en vue vendeur (réelle ou preview)
   const canShowSignButton = viewAsVendeur;
   const canCancel = !viewAsVendeur && isAcheteur;
+  // Suppression réservée à l'acheteur, ET seulement si pas signé ni versé
+  // (les paiements versés/signés ont une valeur juridique/comptable)
+  const canDelete = !viewAsVendeur && isAcheteur && !isPaid;
   const canWhatsapp = !viewAsVendeur && isAcheteur;
   const canSms = !viewAsVendeur && isAcheteur;
   const isPaid = payment.status === 'verse' || payment.signature;
@@ -1073,6 +1100,15 @@ const PaymentRow: React.FC<{
             title="Annuler ce versement"
           >
             <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {canDelete && (
+          <button
+            onClick={onDelete}
+            className="text-xs px-2 py-1 text-red-700 hover:text-red-900 hover:bg-red-100 rounded-md"
+            title="Supprimer DÉFINITIVEMENT cette échéance (action irréversible)"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
       </div>

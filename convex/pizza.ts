@@ -593,6 +593,69 @@ export const cancelPayment = mutation({
   },
 });
 
+// SUPPRIMER complètement un paiement de la DB (admin seulement, ET seulement si pas signé)
+// Différence avec cancelPayment : on retire la ligne de la DB (pas de trace "annulé"),
+// et on renumérote tous les paiements restants pour garder une numérotation 1, 2, 3...
+// sans trou. Utile pour corriger un calendrier mal calibré.
+export const deletePayment = mutation({
+  args: {
+    userEmail: v.string(),
+    paymentId: v.id("pizzaPayments"),
+  },
+  handler: async (ctx, args) => {
+    checkEmail(args.userEmail, "acheteur");
+    const p = await ctx.db.get(args.paymentId);
+    if (!p) throw new ConvexError("Paiement introuvable");
+    if (p.signature) {
+      throw new ConvexError("Impossible de supprimer un paiement déjà signé. C'est une signature juridique définitive.");
+    }
+    if (p.status === "verse") {
+      throw new ConvexError(
+        "Impossible de supprimer un paiement marqué 'versé'. " +
+        "Crée plutôt un paiement compensatoire négatif ou annule et recrée."
+      );
+    }
+    const now = Date.now();
+    const deletedNumero = p.numero;
+    const deletedMontant = p.montant;
+    const deletedType = p.type;
+    await ctx.db.delete(args.paymentId);
+    // Renumérote les paiements restants pour combler le trou.
+    // On numérote dans l'ordre "verse d'abord" (par dateVersement ASC) puis
+    // "en_attente" (par dateEcheance ASC), comme dans recalculateSchedule.
+    const remaining = await ctx.db.query("pizzaPayments").collect();
+    const verses = remaining
+      .filter((x) => x.status === "verse")
+      .sort((a, b) => (a.dateVersement || a.dateEcheance) - (b.dateVersement || b.dateEcheance));
+    const enAttente = remaining
+      .filter((x) => x.status === "en_attente")
+      .sort((a, b) => a.dateEcheance - b.dateEcheance);
+    const finalOrder = [...verses, ...enAttente];
+    let num = 1;
+    for (const x of finalOrder) {
+      if (x.numero !== num) {
+        await ctx.db.patch(x._id, { numero: num, updatedAt: now });
+      }
+      num++;
+    }
+    await ctx.db.insert("pizzaAuditLog", {
+      action: "payment_deleted",
+      userEmail: args.userEmail,
+      userRole: "acheteur",
+      paymentId: args.paymentId,
+      details: JSON.stringify({
+        numero: deletedNumero,
+        montant: deletedMontant,
+        type: deletedType,
+      }),
+      ipAddress: getClientIp(ctx),
+      userAgent: getUserAgent(ctx),
+      timestamp: now,
+    });
+    return { success: true, deletedNumero, renumbered: finalOrder.length };
+  },
+});
+
 // === MIGRATION + RECALCUL : ajuste le calendrier et renumérote proprement ===
 // À appeler UNE FOIS après le déploiement du système à compteur unique.
 // Idempotente : peut être rappelée sans risque.
