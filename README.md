@@ -7,7 +7,7 @@ App extraite de [lobry-sms-brocante](https://github.com/lefreddy95/lobry-sms-bro
 ## Stack
 
 - **Vite** + **React** + **TypeScript**
-- **Convex** (même projet que `lobry-sms-brocante` pour partager les données)
+- **Convex** (projet dédié `different-opossum-825`, instance Clerk partagée avec `lobry-sms-brocante`)
 - **Clerk** (même instance Clerk, 2 users autorisés : Freddy + Francky)
 - **Lucide React** (icônes)
 - **Framer Motion** (animations camion pizza)
@@ -18,7 +18,8 @@ App extraite de [lobry-sms-brocante](https://github.com/lefreddy95/lobry-sms-bro
 ```bash
 npm install
 
-# 1. Link Convex to the shared project (interactive, ask for "use existing project" → affable-cod-552)
+# 1. Convex is already configured to the dedicated project `different-opossum-825`.
+#    Just run `npx convex dev` to spin up a local dev proxy.
 npx convex dev
 
 # 2. Fill in .env with your Clerk publishable key
@@ -43,9 +44,9 @@ git push origin main  # Netlify auto-deploys
 
 | Variable | Type | Valeur |
 |---|---|---|
-| `VITE_CONVEX_URL` | build-time (Vite) | `https://affable-cod-552.eu-west-1.convex.cloud` |
-| `VITE_CLERK_PUBLISHABLE_KEY` | build-time (Vite) | (même clé que lobry-sms-brocante) |
-| `CONVEX_DEPLOY_KEY` | runtime (Convex) | (clé prod, même projet Convex) |
+| `VITE_CONVEX_URL` | build-time (Vite) | `https://different-opossum-825.eu-west-1.convex.cloud` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | build-time (Vite) | (instance Clerk partagée avec `lobry-sms-brocante`) |
+| `CONVEX_DEPLOY_KEY` | runtime (Convex) | (clé prod, générée dans le dashboard du projet `different-opossum-825`) |
 | `PUSHBULLET_WORKER_URL` | runtime (Convex) | `https://admin.ableiges.com` (worker Pushbullet qui envoie via MacroDroid) |
 
 ## Routes

@@ -9,7 +9,8 @@ import { v } from "convex/values";
 //
 // Cette app est extraite de lobry-sms-brocante (commits c6d2e20, 838463e,
 // f646863, 5dbece1) pour avoir une UI dédiée, légère, sans le reste de
-// l'app SMS brocante. Mêmes données : on partage le projet Convex existant.
+// l'app SMS brocante. Projet Convex DEDIE a suivi-dette (different-opossum-825)
+// ; seule l'instance Clerk est partagée avec lobry-sms-brocante.
 
 export default defineSchema({
   // Configuration globale (singleton)

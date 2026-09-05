@@ -717,7 +717,7 @@ export const getWhatsappLink = query({
     const message = `🍕 *${config.nomCamion}* — ${label}\n\n` +
       `Montant : *${p.montant} €*\n` +
       `Échéance : ${new Date(p.dateEcheance).toLocaleDateString("fr-FR")}\n\n` +
-      `👉 Connecte-toi ici pour signer ce versement :\n${process.env.CONVEX_SITE_URL || "https://lobry.netlify.app"}/pizza-truck?sign=${p._id}`;
+      `👉 Connecte-toi ici pour signer ce versement :\n${process.env.CONVEX_SITE_URL || "https://suivi-dette.netlify.app"}/pizza-truck?sign=${p._id}`;
     return {
       message,
       phoneNumber: config.vendeurPhone || null,  // null si pas configuré
@@ -756,7 +756,7 @@ export const sendSmsToVendor = action({
     const message = `🍕 *${config.nomCamion}* — Versement n°${p.numero}\n\n` +
       `Montant : *${p.montant} €*\n` +
       `Échéance : ${new Date(p.dateEcheance).toLocaleDateString("fr-FR")}\n\n` +
-      `👉 Connecte-toi ici pour signer ce versement :\n${process.env.CONVEX_SITE_URL || "https://lobry.netlify.app"}/pizza-truck?sign=${p._id}`;
+      `👉 Connecte-toi ici pour signer ce versement :\n${process.env.CONVEX_SITE_URL || "https://suivi-dette.netlify.app"}/pizza-truck?sign=${p._id}`;
     // Appel HTTP au worker Pushbullet
     const response = await fetch(`${workerUrl}/send-sms`, {
       method: "POST",
