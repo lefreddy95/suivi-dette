@@ -29,10 +29,30 @@ const VENDEUR_EMAIL = 'franckylobry6@gmail.com';
 const PizzaTruckPage: React.FC = () => {
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerk();
-  const userEmail = user?.emailAddresses?.[0]?.emailAddress || null;
+  // ⚠️ MODE TEST À SUPPRIMER — bypass Clerk avec le code "1234"
+  // Convex vérifie uniquement userEmail (pas l'auth Clerk), donc on peut
+  // shunter Clerk côté front en injectant un userEmail factice. À retirer
+  // avant la vraie prod (sinon n'importe qui avec le code accède à l'app).
+  const [bypassUser, setBypassUser] = useState<{ email: string } | null>(null);
+  const [testCode, setTestCode] = useState('');
+  // En mode bypass, on force le user effectif avec bypassUser.email
+  const clerkUserEmail = user?.emailAddresses?.[0]?.emailAddress || null;
+  const userEmail = bypassUser?.email || clerkUserEmail;
+  // isLoaded : si on est en bypass, on n'attend plus Clerk
+  const isLoadedEffective = bypassUser !== null ? true : isLoaded;
+  // isSignedIn : true si on a un userEmail (bypass ou Clerk)
+  const isSignedInEffective = !!userEmail;
   const isAllowed = userEmail && ALLOWED_EMAILS.has(userEmail);
   const isAcheteur = userEmail === ACHETEUR_EMAIL;
   const isVendeur = userEmail === VENDEUR_EMAIL;
+  // ⚠️ MODE TEST À SUPPRIMER — signOut qui gère aussi le bypass
+  const handleSignOut = () => {
+    if (bypassUser !== null) {
+      setBypassUser(null);
+    } else {
+      signOut({ redirectUrl: window.location.origin });
+    }
+  };
   // Mode preview : permet à l'admin de basculer sur la vue du vendeur
   // (pour comprendre ce que Francky voit avant de lui envoyer le lien
   // WhatsApp). Le vendeur ne peut PAS preview la vue acheteur (il n'a
@@ -88,10 +108,10 @@ const PizzaTruckPage: React.FC = () => {
   const sendSmsToVendorAct = useAction(api.pizza.sendSmsToVendor);
 
   // ===== CHARGEMENT =====
-  if (!isLoaded) {
+  if (!isLoadedEffective) {
     return <CenterLoader label="Chargement de l'utilisateur..." />;
   }
-  if (!isSignedIn) {
+  if (!isSignedInEffective) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full">
@@ -153,6 +173,43 @@ const PizzaTruckPage: React.FC = () => {
 
           <div className="mt-4 text-center text-xs text-gray-500">
             🔒 Authentification sécurisée via Clerk
+          </div>
+
+          {/* === ⚠️ MODE TEST À SUPPRIMER (commit baa5fa6+N) ===
+              Bypass Clerk en entrant le code "1234". N'EST PAS SÉCURISÉ :
+              le backend Convex accepte n'importe quel userEmail whitelisté
+              sans vérifier l'auth Clerk. À retirer avant la vraie prod. */}
+          <div className="mt-4 p-3 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+            <p className="text-xs font-bold text-yellow-800 mb-2">
+              ⚠️ MODE TEST (à supprimer avant prod)
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                placeholder="Code test"
+                className="flex-1 px-2 py-1.5 border border-yellow-300 rounded text-sm bg-white"
+                value={testCode}
+                onChange={(e) => setTestCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && testCode === '1234') {
+                    setBypassUser({ email: 'lefreddy95@gmail.com' });
+                    setTestCode('');
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (testCode === '1234') {
+                    setBypassUser({ email: 'lefreddy95@gmail.com' });
+                    setTestCode('');
+                  }
+                }}
+                className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-sm font-medium"
+              >
+                Connexion test
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -412,7 +469,7 @@ const PizzaTruckPage: React.FC = () => {
               <button
                 onClick={() => {
                   if (window.confirm('Se déconnecter ?')) {
-                    signOut({ redirectUrl: window.location.origin });
+                    handleSignOut();
                   }
                 }}
                 className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
@@ -449,7 +506,7 @@ const PizzaTruckPage: React.FC = () => {
             <button
               onClick={() => {
                 if (window.confirm('Se déconnecter ?')) {
-                  signOut({ redirectUrl: window.location.origin });
+                  handleSignOut();
                 }
               }}
               className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md"
