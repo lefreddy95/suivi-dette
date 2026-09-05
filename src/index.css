@@ -1,0 +1,323 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🔧 CORRECTION: Styles globaux pour améliorer le tactile sur mobile */
+@layer base {
+  * {
+    /* Améliorer la réactivité tactile */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Permettre la sélection de texte dans les zones appropriées */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+
+  /* Texte sélectionnable (ex: corps des messages SMS pour copier/coller) */
+  .selectable-text,
+  .selectable-text * {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default; /* menu contextuel iOS (copier) */
+  }
+
+  /* Améliorer le scroll sur mobile */
+  html {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* Empêcher le zoom sur double tap */
+    touch-action: manipulation;
+  }
+
+  /* Améliorer les boutons tactiles */
+  button, [role="button"], .cursor-pointer {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Améliorer les liens */
+  a {
+    touch-action: manipulation;
+  }
+
+  /* Masquer les scrollbars sur mobile tout en gardant la fonctionnalité */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Améliorer les modales sur mobile */
+  .modal-content {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Empêcher le bounce sur iOS */
+  .no-bounce {
+    overscroll-behavior: none;
+  }
+  
+  /* 🔧 CORRECTION: Empêcher les fenêtres intempestives */
+  .modal-dialog {
+    overscroll-behavior: contain;
+  }
+  
+  /* 🔧 CORRECTION: Améliorer le défilement dans les modales */
+  .modal-scrollable {
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 50px; /* Espace supplémentaire en bas */
+  }
+}
+
+/* 🔧 CORRECTION: Styles spécifiques pour les éléments tactiles */
+@layer components {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .touch-button {
+    @apply touch-target;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .touch-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+  }
+
+  .touch-button:active::before {
+    width: 100px;
+    height: 100px;
+  }
+
+  /* Améliorer les zones de saisie sur mobile */
+  .mobile-input {
+    font-size: 16px; /* Empêcher le zoom sur iOS */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Améliorer les sélecteurs sur mobile */
+  .mobile-select {
+    font-size: 16px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+  }
+  
+  /* 🔧 CORRECTION: Conteneur avec défilement sécurisé */
+  .safe-scroll-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 50px;
+  }
+  
+  /* 🔧 CORRECTION: Conteneur de modal avec hauteur limitée */
+  .modal-content-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 50px;
+  }
+}
+
+/* 🔧 CORRECTION: Styles pour les animations tactiles */
+@layer utilities {
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
+  .webkit-overflow-scrolling-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Animation de feedback tactile */
+  .touch-feedback {
+    transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
+  }
+
+  .touch-feedback:active {
+    transform: scale(0.98);
+  }
+
+  /* Améliorer la visibilité des focus sur mobile */
+  .focus-visible-mobile:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  
+  /* 🔧 CORRECTION: Classe pour éviter les fenêtres intempestives */
+  .no-confirm-dialog {
+    overscroll-behavior: contain;
+  }
+  
+  /* 🔧 CORRECTION: Classe pour les conteneurs avec défilement limité */
+  .limited-height-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-bottom: 50px;
+  }
+}
+
+/* 🔧 CORRECTION: Media queries pour mobile */
+@media (max-width: 640px) {
+  /* Augmenter la taille des zones tactiles sur mobile */
+  button, [role="button"] {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  /* Améliorer les modales sur mobile */
+  .modal-mobile {
+    height: 100vh;
+    width: 100vw;
+    border-radius: 0;
+    max-height: none;
+  }
+
+  /* Améliorer les inputs sur mobile */
+  input, textarea, select {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  /* Améliorer les cartes sur mobile */
+  .card-mobile {
+    margin: 8px;
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  /* 🔧 CORRECTION: Limiter la hauteur des conteneurs de défilement sur mobile */
+  .modal-content-container {
+    max-height: 60vh;
+  }
+}
+
+/* 🔧 CORRECTION: Styles pour les états de chargement */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  touch-action: none;
+}
+
+/* 🔧 CORRECTION: Améliorer les transitions sur mobile */
+.smooth-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 🔧 CORRECTION: Styles pour les swipe gestures */
+.swipe-container {
+  touch-action: pan-x;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 🔧 Taille de texte globale (paramètre Apparence)
+   Tailwind utilise rem pour text-* donc en changeant la font-size du root,
+   toutes les classes text-* scalent proportionnellement.
+   On applique via document.documentElement.style.fontSize depuis
+   src/services/fontScale.ts. */
+html.app-font-small { font-size: 14px; }
+html.app-font-medium { font-size: 16px; }
+html.app-font-large { font-size: 18px; }
+html.app-font-xlarge { font-size: 20px; }
+
+.swipe-indicator {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+
+.swipe-active .swipe-indicator {
+  opacity: 1;
+}
+
+/* 🔧 CORRECTION: Styles pour les modales avec défilement */
+.modal-with-footer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.modal-body-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: 50px;
+}
+
+.modal-footer-fixed {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem;
+  z-index: 10;
+}

@@ -1,0 +1,22 @@
+[build]
+  publish = "dist"
+  # (2026-09-05) : on utilise build:netlify au lieu de build pour pousser
+  # automatiquement le code Convex (`convex deploy`) AVANT de build le front.
+  # Sans ça, après chaque modif de code dans convex/, le cloud Convex
+  # continue de tourner l'ancien code → bugs "les nouvelles instructions
+  # ne sont pas prises en compte" côté API alors que le front et la DB
+  # sont à jour. Requiert CONVEX_DEPLOY_KEY dans les env vars Netlify.
+  command = "npm run build:netlify"
+
+# IMPORTANT : les redirects API sont dans public/_redirects (file-based)
+# et non ici. Les [[redirects]] dans netlify.toml étaient systématiquement
+# outrepassés par le catch-all /* -> /index.html de la SPA, même avec
+# force=true. Le _redirects file avec le flag Force explicite par ligne
+# est traité différemment par l'edge Netlify et fonctionne.
+#
+# Le catch-all SPA reste ici car il est nécessaire pour le routing React
+# et n'a aucun conflit avec les routes /api/* (elles sont dans _redirects).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

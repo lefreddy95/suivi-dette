@@ -1,0 +1,170 @@
+/* =========================================================================
+ * pizza-animations.css — Animations pour la page Pizza Truck
+ * ========================================================================= */
+
+/* Camion pizza qui roule (translateX de gauche à droite) */
+@keyframes pizza-truck-drive {
+  0%   { transform: translateX(-100%) translateY(0); }
+  10%  { transform: translateX(-90%)  translateY(-2px); } /* petite vibration */
+  20%  { transform: translateX(-80%)  translateY(0); }
+  30%  { transform: translateX(-70%)  translateY(-2px); }
+  40%  { transform: translateX(-60%)  translateY(0); }
+  50%  { transform: translateX(-50%)  translateY(-2px); }
+  60%  { transform: translateX(-40%)  translateY(0); }
+  70%  { transform: translateX(-30%)  translateY(-2px); }
+  80%  { transform: translateX(-20%)  translateY(0); }
+  90%  { transform: translateX(-10%)  translateY(-2px); }
+  100% { transform: translateX(0%)    translateY(0); }
+}
+
+.pizza-truck {
+  display: inline-block;
+  font-size: 3rem; /* emoji size */
+  animation: pizza-truck-drive 1.2s ease-in-out;
+  /* Le camion reste à sa position finale après l'animation */
+  animation-fill-mode: forwards;
+}
+
+/* Roues qui tournent (pendant la traversée) */
+.pizza-truck-wheels {
+  display: inline-block;
+  animation: wheels-spin 0.4s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes wheels-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Fumée qui s'échappe du pot d'échappement */
+@keyframes pizza-smoke {
+  0%   { opacity: 0.7; transform: translate(0, 0) scale(0.5); }
+  100% { opacity: 0;   transform: translate(-20px, -30px) scale(1.5); }
+}
+
+.pizza-smoke {
+  position: absolute;
+  font-size: 1rem;
+  animation: pizza-smoke 1.5s ease-out infinite;
+}
+
+/* Progress bar qui se remplit */
+.pizza-progress-fill {
+  background: linear-gradient(90deg, #ef4444 0%, #f97316 50%, #eab308 100%);
+  background-size: 200% 100%;
+  animation: pizza-shimmer 3s linear infinite;
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pizza-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Confettis qui tombent à la signature */
+@keyframes confetti-fall {
+  0%   { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti-piece {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  top: -20px;
+  animation: confetti-fall linear forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Pulse sur les éléments importants (signature, prochain paiement) */
+@keyframes pulse-attention {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50%      { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+}
+
+.pulse-attention {
+  animation: pulse-attention 2s ease-in-out infinite;
+}
+
+/* Animation de check (succès) */
+@keyframes draw-check {
+  from { stroke-dashoffset: 100; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.draw-check {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: draw-check 0.6s ease-out 0.2s forwards;
+}
+
+/* Bounce léger sur les cartes */
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+.bounce-soft:hover {
+  animation: bounce-soft 0.6s ease-in-out;
+}
+
+/* Animation de chargement (spinner pizza) */
+@keyframes pizza-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.pizza-spinner {
+  display: inline-block;
+  font-size: 2rem;
+  animation: pizza-spin 1s linear infinite;
+}
+
+/* ============================================================================
+ * PizzaTruckAnimation — Keyframes dédiés
+ * ============================================================================ */
+
+/* Route pointillée animée : les pointillés défilent vers la gauche
+   pour donner l'impression que la route "bouge" sous le camion */
+@keyframes pizza-road-move {
+  from { background-position: 0 0; }
+  to   { background-position: -24px 0; }
+}
+
+/* Le camion rebondit légèrement pendant qu'il roule (effet suspension) */
+@keyframes pizza-truck-bounce {
+  0%, 100% { transform: scaleX(1) translateY(0); }
+  50%      { transform: scaleX(1) translateY(-2px); }
+}
+
+/* Fumée du pot d'échappement : monte et se dissipe */
+@keyframes pizza-truck-smoke {
+  0% {
+    opacity: 0.7;
+    transform: translate(0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-15px, -25px) scale(1.5);
+  }
+}
+
+/* Fumée de la cheminée de la maison */
+@keyframes pizza-smoke-rise {
+  0% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translateY(-8px);
+  }
+}
