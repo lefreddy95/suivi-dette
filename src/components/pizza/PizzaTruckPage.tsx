@@ -7,7 +7,7 @@ import PizzaTruckAnimation from './PizzaTruckAnimation';
 import {
   Pizza, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
-  X, Save, MessageCircle, ShieldCheck,
+  X, Save, MessageCircle, MessageSquare, ShieldCheck,
   ExternalLink, FileSignature, LogOut, Eye, Camera, ArrowLeft,
 } from 'lucide-react';
 import { SignIn } from '@clerk/clerk-react';
