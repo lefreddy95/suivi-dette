@@ -790,10 +790,10 @@ const PizzaTruckPage: React.FC = () => {
 // =========================================================================
 
 const CenterLoader: React.FC<{ label: string }> = ({ label }) => (
-  <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 flex items-center justify-center">
+  <div className="min-h-screen bg-gradient-to-br from-orange-100 via-yellow-100 to-red-100 flex items-center justify-center">
     <div className="text-center">
-      <div className="pizza-spinner">🍕</div>
-      <p className="mt-3 text-gray-600">{label}</p>
+      <div className="pizza-spinner text-5xl">🍕</div>
+      <p className="mt-4 text-base font-medium text-gray-800">{label}</p>
     </div>
   </div>
 );
