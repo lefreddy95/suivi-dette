@@ -370,7 +370,7 @@ export const recalculateSchedule = mutation({
         q.eq(q.field("type"), "mensuel"),
         q.eq(q.field("status"), "en_attente")
       ))
-      .order("dateEcheance")
+      .order("asc", q.field("dateEcheance"))
       .collect();
     // Tri final : d'abord les "verse" (par dateVersement), puis les "en_attente"
     // (par dateEcheance). Les ponctuels "verse" (rares) sont intégrés au début.
