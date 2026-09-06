@@ -681,6 +681,56 @@ export const getMyPublicTransactions = query({
   },
 });
 
+// === MIGRATION : transaction "camion" legacy vers Kuidi ====================
+// La dette du camion pizza (Freddy -> Francky, 30 000 € en 60 mensualites de
+// 500 €) a ete creee en Kuidi avant que le systeme de signatures et d'echeancier
+// soit en place. Cette mutation idempotente patche la transaction pour qu'elle
+// beneficie des nouvelles features (contrepartie, publicToken, echeancier).
+//
+// Idempotente : si la transaction a deja ete patchee, elle ne fait rien.
+
+export const migrateCamionToKuidi = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Trouve toutes les transactions "camion" de Freddy qui n'ont pas encore
+    // ete patchees (pas de publicToken)
+    const candidates = await ctx.db
+      .query("transactions")
+      .withIndex("by_owner", (q) => q.eq("ownerEmail", "lefreddy95@gmail.com"))
+      .collect();
+    const toMigrate = candidates.filter(
+      (t) => t.title.toLowerCase().includes("camion") && !t.publicToken
+    );
+    if (toMigrate.length === 0) {
+      return { migrated: 0, message: "Aucune transaction 'camion' a migrer (deja fait ou inexistante)" };
+    }
+    const migrated: string[] = [];
+    for (const tx of toMigrate) {
+      // Date de debut = il y a 1 mois (pour que la 1ere echeance soit dans 1 mois)
+      const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      await ctx.db.patch(tx._id, {
+        counterpartyEmail: "franckylobry6@gmail.com",
+        counterpartyName: "Francky",
+        publicToken: generatePublicToken(),
+        // Si pas d'echeancier defini, on en met un par defaut (500€/mois)
+        installmentAmount: tx.installmentAmount ?? 500,
+        installmentFrequency: tx.installmentFrequency ?? "monthly",
+        installmentStartDate: tx.installmentStartDate ?? oneMonthAgo,
+        installmentCount: tx.installmentCount ?? 60,
+        // Initialise signatures si manquant (schema le rend optionnel)
+        signatures: tx.signatures ?? [],
+        updatedAt: Date.now(),
+      });
+      migrated.push(tx._id);
+    }
+    return {
+      migrated: migrated.length,
+      ids: migrated,
+      message: `${migrated.length} transaction(s) 'camion' migree(s) avec succes`,
+    };
+  },
+});
+
 // Permet au contrepartie de confirmer un remboursement (avec sa signature)
 export const confirmRepaymentPublic = mutation({
   args: {
