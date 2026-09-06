@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
   X, HandCoins, Banknote, Package, PackageOpen, Wrench, WrenchIcon,
-  Calendar, AlertCircle, StickyNote, CircleDollarSign,
+  Calendar, AlertCircle, StickyNote, CircleDollarSign, Repeat, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 interface TransactionFormModalProps {
@@ -112,6 +112,25 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [dueDate, setDueDate] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  // === Échéancier de remboursement (uniquement money_*) ===
+  const [hasSchedule, setHasSchedule] = useState(false);
+  const [scheduleAmount, setScheduleAmount] = useState('');
+  const [scheduleFrequency, setScheduleFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'quarterly'>('monthly');
+  const [scheduleStartDate, setScheduleStartDate] = useState(() => {
+    // Par défaut : 1 mois après aujourd'hui
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [scheduleCount, setScheduleCount] = useState('');
+
+  const isMoney = type === 'money_lent' || type === 'money_borrowed';
+  // Si on change de type vers non-money, on reset l'échéancier
+  useEffect(() => {
+    if (!isMoney && hasSchedule) {
+      setHasSchedule(false);
+    }
+  }, [isMoney, hasSchedule]);
 
   // Si pas de defaultPersonId, préselectionner la première personne
   useEffect(() => {
@@ -138,10 +157,24 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         return;
       }
     }
+    if (hasSchedule && isMoney) {
+      const schedNum = parseFloat(scheduleAmount);
+      if (isNaN(schedNum) || schedNum <= 0) {
+        alert('Le montant de l\'échéance doit être supérieur à 0');
+        return;
+      }
+      const countNum = scheduleCount ? parseInt(scheduleCount, 10) : undefined;
+      if (scheduleCount && (isNaN(countNum!) || countNum! <= 0)) {
+        alert('Le nombre d\'échéances doit être un entier positif');
+        return;
+      }
+    }
     setSaving(true);
     try {
       const startDateMs = startDate ? new Date(startDate).getTime() : undefined;
       const dueDateMs = dueDate ? new Date(dueDate).getTime() : undefined;
+      const schedStartMs = hasSchedule && scheduleStartDate
+        ? new Date(scheduleStartDate).getTime() : undefined;
       await createMut({
         userEmail,
         personId: personId as any,
@@ -153,6 +186,10 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         itemDescription: typeInfo.hasItem ? itemDescription.trim() || undefined : undefined,
         hoursLogged: typeInfo.hasService && hoursLogged ? parseFloat(hoursLogged) : undefined,
         note: note.trim() || undefined,
+        installmentAmount: hasSchedule && isMoney ? parseFloat(scheduleAmount) : undefined,
+        installmentFrequency: hasSchedule && isMoney ? scheduleFrequency : undefined,
+        installmentStartDate: schedStartMs,
+        installmentCount: hasSchedule && scheduleCount ? parseInt(scheduleCount, 10) : undefined,
       });
       onSaved();
     } catch (e) {
@@ -304,6 +341,111 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
           </div>
         )}
 
+        {/* === ÉCHÉANCIER DE REMBOURSEMENT (uniquement money_*) === */}
+        {isMoney && (
+          <div className="border-2 border-dashed border-orange-200 rounded-xl p-3 bg-orange-50/50">
+            <button
+              type="button"
+              onClick={() => setHasSchedule(!hasSchedule)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Repeat className="w-4 h-4 text-orange-600" />
+                <span className="font-semibold text-sm text-gray-900">
+                  Échéancier de remboursement
+                </span>
+                {hasSchedule && (
+                  <span className="text-[10px] uppercase tracking-wider bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full font-semibold">
+                    Actif
+                  </span>
+                )}
+              </div>
+              {hasSchedule
+                ? <ChevronUp className="w-4 h-4 text-gray-500" />
+                : <ChevronDown className="w-4 h-4 text-gray-500" />}
+            </button>
+
+            {hasSchedule && (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs text-gray-600">
+                  Définis le montant et la fréquence des échéances pour suivre les remboursements.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Montant / échéance (€)
+                    </label>
+                    <input
+                      type="number"
+                      value={scheduleAmount}
+                      onChange={(e) => setScheduleAmount(e.target.value)}
+                      min="0.01"
+                      step="0.01"
+                      placeholder="100"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Fréquence
+                    </label>
+                    <select
+                      value={scheduleFrequency}
+                      onChange={(e) => setScheduleFrequency(e.target.value as any)}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="weekly">Hebdomadaire</option>
+                      <option value="biweekly">Bi-mensuel (2 sem.)</option>
+                      <option value="monthly">Mensuel</option>
+                      <option value="quarterly">Trimestriel</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      1ère échéance
+                    </label>
+                    <input
+                      type="date"
+                      value={scheduleStartDate}
+                      onChange={(e) => setScheduleStartDate(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Nb d'échéances <span className="text-gray-400">(opt.)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={scheduleCount}
+                      onChange={(e) => setScheduleCount(e.target.value)}
+                      min="1"
+                      step="1"
+                      placeholder="∞"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Aperçu des prochaines échéances */}
+                {scheduleAmount && parseFloat(scheduleAmount) > 0 && scheduleStartDate && (
+                  <SchedulePreview
+                    amount={parseFloat(scheduleAmount)}
+                    frequency={scheduleFrequency}
+                    startDate={scheduleStartDate}
+                    count={scheduleCount ? parseInt(scheduleCount, 10) : 3}
+                    maxPreview={3}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* === DATES === */}
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -370,3 +512,55 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 export default TransactionFormModal;
 export { TYPES };
 export type { TransactionType };
+
+// === APERÇU DES PROCHAINES ÉCHÉANCES ===
+const SchedulePreview: React.FC<{
+  amount: number;
+  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
+  startDate: string;
+  count: number;
+  maxPreview: number;
+}> = ({ amount, frequency, startDate, count, maxPreview }) => {
+  // Calcule les N prochaines échéances
+  const installments = useMemo(() => {
+    const list: Array<{ num: number; date: number; label: string }> = [];
+    const start = new Date(startDate);
+    const max = Math.min(count, maxPreview);
+    for (let i = 0; i < max; i++) {
+      const d = new Date(start);
+      if (frequency === 'weekly') d.setDate(d.getDate() + i * 7);
+      else if (frequency === 'biweekly') d.setDate(d.getDate() + i * 14);
+      else if (frequency === 'monthly') d.setMonth(d.getMonth() + i);
+      else if (frequency === 'quarterly') d.setMonth(d.getMonth() + i * 3);
+      list.push({
+        num: i + 1,
+        date: d.getTime(),
+        label: d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+      });
+    }
+    return list;
+  }, [amount, frequency, startDate, count, maxPreview]);
+
+  return (
+    <div className="bg-white rounded-lg p-2 text-xs space-y-1">
+      <p className="font-semibold text-gray-500 uppercase tracking-wider text-[10px]">
+        Aperçu ({installments.length} prochaine{installments.length > 1 ? 's' : ''})
+      </p>
+      {installments.map((inst) => (
+        <div key={inst.num} className="flex items-center justify-between">
+          <span className="text-gray-600">
+            Échéance n°{inst.num} <span className="text-gray-400">— {inst.label}</span>
+          </span>
+          <span className="font-semibold text-orange-700">
+            {amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €
+          </span>
+        </div>
+      ))}
+      {count > maxPreview && (
+        <p className="text-[10px] text-gray-400 italic">
+          +{count - maxPreview} autre{count - maxPreview > 1 ? 's' : ''} échéance{count - maxPreview > 1 ? 's' : ''} après…
+        </p>
+      )}
+    </div>
+  );
+};

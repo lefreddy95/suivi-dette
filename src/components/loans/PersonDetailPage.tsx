@@ -5,7 +5,7 @@ import {
   ArrowLeft, Mail, Phone, StickyNote, Plus, Check, X,
   Banknote, HandCoins, Package, PackageOpen, Wrench, WrenchIcon,
   Calendar, AlertCircle, Trash2, TrendingUp, TrendingDown,
-  CircleDollarSign, ChevronRight,
+  CircleDollarSign, ChevronRight, Repeat,
 } from 'lucide-react';
 
 interface PersonDetailPageProps {
@@ -465,6 +465,11 @@ const TransactionCard: React.FC<{
               </p>
             </div>
           )}
+
+          {/* Échéancier de remboursement (si défini) */}
+          {isMoney && !archived && tx.installmentAmount && tx.installmentFrequency && tx.installmentStartDate && (
+            <ScheduleBadge tx={tx} />
+          )}
         </button>
       </div>
 
@@ -735,3 +740,70 @@ const CloseTxModal: React.FC<{
 };
 
 export default PersonDetailPage;
+
+// === BADGE ÉCHÉANCIER (sous la barre de progression) ===
+const ScheduleBadge: React.FC<{ tx: any }> = ({ tx }) => {
+  // Calcule la prochaine échéance non payée
+  const installmentsPaid = Math.floor(tx.totalRepaid / tx.installmentAmount);
+  const nextInstallmentNum = installmentsPaid + 1;
+  const nextDate = computeNextInstallmentDate(
+    tx.installmentStartDate,
+    tx.installmentFrequency,
+    nextInstallmentNum
+  );
+  const totalCount = tx.installmentCount
+    ?? Math.ceil(tx.amount / tx.installmentAmount);
+  const isLast = nextInstallmentNum > totalCount;
+  const freqLabel = tx.installmentFrequency === 'weekly' ? '/sem.'
+    : tx.installmentFrequency === 'biweekly' ? '/2 sem.'
+    : tx.installmentFrequency === 'monthly' ? '/mois'
+    : '/trimestre';
+
+  const formatAmount = (n: number) =>
+    n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const formatDate = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
+
+  return (
+    <div className="mt-2 flex items-center gap-2 px-2 py-1.5 bg-orange-50 border border-orange-200 rounded-md text-xs">
+      <Repeat className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-gray-700">
+          <span className="font-semibold text-orange-700">
+            {formatAmount(tx.installmentAmount)} € {freqLabel}
+          </span>
+          {tx.installmentCount && (
+            <span className="text-gray-500"> · {tx.installmentCount} échéances</span>
+          )}
+        </p>
+        {!isLast && nextDate && (
+          <p className="text-[10px] text-gray-500">
+            Prochaine : <span className="font-semibold">{formatDate(nextDate)}</span>
+            {' '}(n°{nextInstallmentNum}/{totalCount})
+          </p>
+        )}
+        {isLast && (
+          <p className="text-[10px] text-green-600 font-semibold">
+            🎉 Échéancier terminé
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Helper : calcule la date de la n-ième échéance à partir de la date de début
+function computeNextInstallmentDate(
+  startDateMs: number,
+  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly',
+  n: number
+): number {
+  const d = new Date(startDateMs);
+  if (frequency === 'weekly') d.setDate(d.getDate() + (n - 1) * 7);
+  else if (frequency === 'biweekly') d.setDate(d.getDate() + (n - 1) * 14);
+  else if (frequency === 'monthly') d.setMonth(d.getMonth() + (n - 1));
+  else if (frequency === 'quarterly') d.setMonth(d.getMonth() + (n - 1) * 3);
+  return d.getTime();
+}

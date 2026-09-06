@@ -249,6 +249,14 @@ export const createTransaction = mutation({
     dueDate: v.optional(v.number()),
     reminderDate: v.optional(v.number()),
     note: v.optional(v.string()),
+    // Échéancier (uniquement pour money_lent / money_borrowed)
+    installmentAmount: v.optional(v.number()),
+    installmentFrequency: v.optional(v.union(
+      v.literal("weekly"), v.literal("biweekly"),
+      v.literal("monthly"), v.literal("quarterly")
+    )),
+    installmentStartDate: v.optional(v.number()),
+    installmentCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     checkUser(args.userEmail);
@@ -256,6 +264,23 @@ export const createTransaction = mutation({
     const p = await ctx.db.get(args.personId);
     if (!p || p.ownerEmail !== args.userEmail) {
       throw new ConvexError("Personne invalide");
+    }
+    // L'échéancier est reserve aux transactions d'argent
+    const isMoney = args.type === "money_lent" || args.type === "money_borrowed";
+    if (!isMoney && (args.installmentAmount || args.installmentFrequency)) {
+      throw new ConvexError("L'echeancier est reserve aux prets/emprunts d'argent");
+    }
+    // Valider la coherence de l'echeancier
+    if (args.installmentAmount !== undefined) {
+      if (args.installmentAmount <= 0) {
+        throw new ConvexError("Le montant de l'echeance doit etre > 0");
+      }
+      if (!args.installmentFrequency) {
+        throw new ConvexError("Frequence d'echeance manquante");
+      }
+      if (!args.installmentStartDate) {
+        throw new ConvexError("Date de 1ere echeance manquante");
+      }
     }
     const now = Date.now();
     const id = await ctx.db.insert("transactions", {
@@ -275,6 +300,10 @@ export const createTransaction = mutation({
       status: "en_cours",
       totalRepaid: 0,
       repayments: [],
+      installmentAmount: args.installmentAmount,
+      installmentFrequency: args.installmentFrequency,
+      installmentStartDate: args.installmentStartDate,
+      installmentCount: args.installmentCount,
       note: args.note,
       createdAt: now,
       updatedAt: now,
@@ -297,6 +326,15 @@ export const updateTransaction = mutation({
       v.literal("en_cours"), v.literal("termine"), v.literal("annule")
     )),
     note: v.optional(v.string()),
+    // Échéancier (peut etre supprime en passant null)
+    installmentAmount: v.optional(v.union(v.number(), v.null())),
+    installmentFrequency: v.optional(v.union(
+      v.literal("weekly"), v.literal("biweekly"),
+      v.literal("monthly"), v.literal("quarterly"),
+      v.null()
+    )),
+    installmentStartDate: v.optional(v.union(v.number(), v.null())),
+    installmentCount: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     checkUser(args.userEmail);
@@ -313,6 +351,10 @@ export const updateTransaction = mutation({
     if (args.reminderDate !== undefined) patch.reminderDate = args.reminderDate ?? undefined;
     if (args.status !== undefined) patch.status = args.status;
     if (args.note !== undefined) patch.note = args.note;
+    if (args.installmentAmount !== undefined) patch.installmentAmount = args.installmentAmount ?? undefined;
+    if (args.installmentFrequency !== undefined) patch.installmentFrequency = args.installmentFrequency ?? undefined;
+    if (args.installmentStartDate !== undefined) patch.installmentStartDate = args.installmentStartDate ?? undefined;
+    if (args.installmentCount !== undefined) patch.installmentCount = args.installmentCount ?? undefined;
     await ctx.db.patch(args.transactionId, patch);
     return { success: true };
   },

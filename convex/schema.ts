@@ -82,7 +82,7 @@ export default defineSchema({
     .index("by_payment", ["paymentId"]),
 
   // ====================================================================
-  // === KUIDI — Tracker de prêts multi-catégorie (Phase 1, commit 1/4) ===
+  // === SUIVI-DETTE — Tracker de prêts multi-catégorie (Phase 1, commit 1/4) ===
   // ====================================================================
   // Multi-tenant par ownerEmail (= Clerk user.email OU email whitelisté).
   // Pour un vrai SaaS : migrer vers ctx.auth.getUserIdentity().subject.
@@ -143,6 +143,18 @@ export default defineSchema({
       date: v.number(),
       note: v.optional(v.string()),
     })),
+    // === Échéancier de remboursement (pour money_lent / money_borrowed) ===
+    // Si defini, l'app calcule les N prochaines échéances et les affiche dans
+    // la fiche personne + dashboard. Aucun job cron : on génère à la volée.
+    installmentAmount: v.optional(v.number()),  // montant par échéance
+    installmentFrequency: v.optional(v.union(
+      v.literal("weekly"),      // chaque semaine
+      v.literal("biweekly"),    // toutes les 2 semaines
+      v.literal("monthly"),     // chaque mois
+      v.literal("quarterly")    // chaque trimestre
+    )),
+    installmentStartDate: v.optional(v.number()),  // epoch ms — 1ère échéance
+    installmentCount: v.optional(v.number()),  // nb total d'échéances (optionnel = infini)
     // === Audit ===
     note: v.optional(v.string()),
     createdAt: v.number(),
