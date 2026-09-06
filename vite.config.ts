@@ -18,10 +18,10 @@ export default defineConfig({
 
       // Manifest PWA généré à partir de cette config
       manifest: {
-        name: 'Suivi-dette — Camion pizza',
+        name: 'Suivi-dette — Tracker de prêts',
         short_name: 'Suivi-dette',
         description:
-          'Suivi du paiement du camion pizza (Freddy → Francky) — mensualités de 500 €',
+          'Tracker de prêts entre particuliers : argent, objets, services. Ne perds plus le fil.',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

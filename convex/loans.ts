@@ -1,5 +1,5 @@
 // =========================================================================
-// loans.ts — Kuidi : Tracker de prêts multi-catégorie (Phase 1, commit 1/4)
+// loans.ts — Suivi-dette : Tracker de prêts multi-catégorie (Phase 1, commit 1/4)
 // =========================================================================
 // Gère les personnes (people) et les transactions (prêts d'argent, objets,
 // services, multi-directionnels).
@@ -444,11 +444,11 @@ export const getDashboard = query({
     // ============================================================
     // === INTEGRATION DETTE CAMION PIZZA (legacy suivi-dette) ===
     // ============================================================
-    // Le projet evolue vers Kuidi, mais la dette du camion pizza
+    // Le projet evolue vers Suivi-dette, mais la dette du camion pizza
     // (Freddy -> Francky, 30 000 € en 60 mensualites) reste dans les
     // anciennes tables pizzaConfig/pizzaPayments. On l'integre ici
     // pour que le user voie tout au meme endroit.
-    // TODO Phase 4 : migrer ces paiements en transactions Kuidi.
+    // TODO Phase 4 : migrer ces paiements en transactions Suivi-dette.
     const pizzaConfig = await ctx.db.query("pizzaConfig").first();
     let pizzaDebt: { remaining: number; camionName: string; mensualite: number; paidCount: number; totalCount: number } | null = null;
     if (pizzaConfig) {

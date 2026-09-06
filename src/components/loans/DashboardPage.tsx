@@ -16,7 +16,7 @@ interface DashboardPageProps {
 }
 
 /**
- * DashboardPage — Page d'accueil de Kuidi.
+ * DashboardPage — Page d'accueil de Suivi-dette.
  *
  * Affiche 4 grandes cards d'avancement (on te doit / tu dois / items / services),
  * les prochaines échéances, l'activité récente et un bouton d'action rapide
@@ -330,7 +330,7 @@ const EmptyState: React.FC<{ onNewTransaction: () => void }> = ({ onNewTransacti
     <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-full mx-auto mb-6 flex items-center justify-center">
       <Sparkles className="w-10 h-10 text-white" />
     </div>
-    <h2 className="text-2xl font-bold text-gray-900 mb-3">Bienvenue sur Kuidi !</h2>
+    <h2 className="text-2xl font-bold text-gray-900 mb-3">Bienvenue sur Suivi-dette !</h2>
     <p className="text-gray-600 mb-6 max-w-md mx-auto">
       Le tracker de prêts entre particuliers. Ne perds plus le fil de ce que tu
       prêtes, ce qu'on te doit, et ce que tu dois.

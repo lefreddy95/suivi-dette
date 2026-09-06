@@ -448,7 +448,7 @@ const PizzaTruckPage: React.FC = () => {
 
   // ===== RENDER =====
 
-  // Page Kuidi (Dashboard + People + Person detail + Transactions) : nouveau tracker de prêts, plein écran.
+  // Page Suivi-dette (Dashboard + People + Person detail + Transactions) : nouveau tracker de prêts, plein écran.
   // Pour l'instant intégré temporairement dans PizzaTruckPage (refonte future).
   if (currentView === 'kuidi' || currentView === 'kuidi-people' || currentView === 'kuidi-person-detail' || currentView === 'kuidi-transactions') {
     return (
@@ -457,7 +457,7 @@ const PizzaTruckPage: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl">💰</span>
-              <h1 className="text-lg font-bold text-gray-900">Kuidi</h1>
+              <h1 className="text-lg font-bold text-gray-900">Suivi-dette</h1>
             </div>
             <div className="flex items-center gap-1">
               <button
