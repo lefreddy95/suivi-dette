@@ -927,6 +927,12 @@ const PaymentRow: React.FC<{
   onWhatsapp: () => void;
   onSms: () => void;
 }> = ({ payment, isAcheteur, viewAsVendeur, onMarkPaid, onSign, onCancel, onDelete, onWhatsapp, onSms }) => {
+  // ⚠️ État du paiement : DOIT être déclaré AVANT les `canXxx` qui en dépendent
+  // (les `const` ne sont pas hoistés comme `var` — utiliser avant init throw).
+  const isPaid = payment.status === 'verse' || payment.signature;
+  const isSigned = !!payment.signature;
+  const isCancelled = payment.status === 'annule';
+  const isOverdue = !isPaid && !isCancelled && payment.dateEcheance < Date.now();
   // Actions effectives (basées sur la vue effective)
   const canMarkPaid = !viewAsVendeur && isAcheteur;
   // En clair : on peut signer si on est en vue vendeur (réelle ou preview)
@@ -937,10 +943,6 @@ const PaymentRow: React.FC<{
   const canDelete = !viewAsVendeur && isAcheteur && !isPaid;
   const canWhatsapp = !viewAsVendeur && isAcheteur;
   const canSms = !viewAsVendeur && isAcheteur;
-  const isPaid = payment.status === 'verse' || payment.signature;
-  const isSigned = !!payment.signature;
-  const isCancelled = payment.status === 'annule';
-  const isOverdue = !isPaid && !isCancelled && payment.dateEcheance < Date.now();
 
   let bgClass = 'bg-white';
   let icon = <Clock className="w-5 h-5 text-gray-400" />;
