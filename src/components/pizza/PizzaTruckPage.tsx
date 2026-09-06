@@ -6,6 +6,7 @@ import './pizza-animations.css';
 import PizzaTruckAnimation from './PizzaTruckAnimation';
 import ContractPage from './ContractPage';
 import SettingsPage from './SettingsPage';
+import DashboardPage from '../loans/DashboardPage';
 import {
   Pizza, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
@@ -64,8 +65,10 @@ const PizzaTruckPage: React.FC = () => {
   // ⚠️ Les mutations Convex utilisent TOUJOURS isAcheteur (le vrai rôle
   // de l'user connecté). Le preview est purement visuel.
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
-  // Onglet principal : 'calendrier' (vue par défaut), 'contrat' ou 'parametres'
-  const [currentView, setCurrentView] = useState<'calendrier' | 'contrat' | 'parametres'>('calendrier');
+  // Onglet principal : 'kuidi' (Kuidi Dashboard, defaut), 'camion' (PizzaTruck),
+  // 'contrat' ou 'parametres'. Note : 'camion' est le legacy suivi-dette, conserve
+  // pour la migration douce. Le default est passe a 'kuidi' pour la refonte.
+  const [currentView, setCurrentView] = useState<'kuidi' | 'camion' | 'contrat' | 'parametres'>('kuidi');
   // Rôle effectif affiché
   const displayAsVendeur = isVendeur || (isAcheteur && previewAs === 'vendeur');
   // Actions admin affichées seulement si acheteur ET pas en preview vendeur
@@ -436,6 +439,68 @@ const PizzaTruckPage: React.FC = () => {
   };
 
   // ===== RENDER =====
+
+  // Page Kuidi (Dashboard) : nouveau tracker de prêts, plein écran.
+  // Pour l'instant intégré temporairement dans PizzaTruckPage (refonte future).
+  if (currentView === 'kuidi') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
+        <header className="bg-white border-b-2 border-orange-200 shadow-sm sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">💰</span>
+              <h1 className="text-lg font-bold text-gray-900">Kuidi</h1>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentView('kuidi')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-orange-100 text-orange-700"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => setCurrentView('kuidi-people')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
+              >
+                Personnes
+              </button>
+              <button
+                onClick={() => setCurrentView('kuidi-transactions')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
+              >
+                Transactions
+              </button>
+              {showAdminActions && (
+                <button
+                  onClick={() => setCurrentView('parametres')}
+                  className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
+                >
+                  ⚙️
+                </button>
+              )}
+              <button
+                onClick={() => setCurrentView('camion')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
+                title="Suivi-dette (camion pizza, ancien)"
+              >
+                🍕 Camion
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+          <DashboardPage
+            userEmail={userEmail!}
+            onSelectPerson={(id) => setCurrentView('kuidi-people')}
+            onSelectTransaction={(id) => setCurrentView('kuidi-transactions')}
+            onNewTransaction={() => alert('Modale de création arrive au commit 1.4/4 !')}
+            onViewAllTransactions={() => setCurrentView('kuidi-transactions')}
+            onViewPeople={() => setCurrentView('kuidi-people')}
+          />
+        </main>
+      </div>
+    );
+  }
 
   // Page Parametres : retour anticipé pour avoir une vraie page PLEIN ECRAN
   // (au lieu d'une modal qui sort de l'ecran sur petits viewports).
