@@ -1,17 +1,28 @@
 import { useUser } from '@clerk/clerk-react';
+import { useEffect, useState } from 'react';
 import PizzaTruckPage from './components/pizza/PizzaTruckPage';
 import LandingPage from './components/LandingPage';
+import PublicTransactionPage from './components/loans/PublicTransactionPage';
 
 /**
- * App — Routeur racine de l'application.
+ * App — Routeur racine.
  *
- * - Tant que Clerk charge → affiche un loader centré
- * - Si user NON signé → LandingPage (marketing + bouton "Se connecter")
- * - Si user signé → PizzaTruckPage (l'app de suivi de prêts)
+ * 3 routes possibles selon le pathname :
+ *  - /transaction/:token -> PublicTransactionPage (accessible SANS auth)
+ *  - /                   -> LandingPage si non signé, PizzaTruckPage si signé
  */
 function App() {
   const { isLoaded, isSignedIn } = useUser();
+  const [pathname, setPathname] = useState(() => window.location.pathname);
 
+  // Ecoute les changements de route (back/forward, push state futur)
+  useEffect(() => {
+    const onPopState = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Loader pendant que Clerk charge
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
@@ -22,6 +33,12 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Route publique : /transaction/:token
+  const publicMatch = pathname.match(/^\/transaction\/([A-Za-z0-9_-]+)\/?$/);
+  if (publicMatch) {
+    return <PublicTransactionPage token={publicMatch[1]} />;
   }
 
   return isSignedIn ? <PizzaTruckPage /> : <LandingPage />;

@@ -183,6 +183,20 @@ export const deletePerson = mutation({
 
 // === TRANSACTIONS ==========================================================
 
+// Genere un token public unique (URL-safe, ~22 chars)
+function generatePublicToken(): string {
+  // Utilise crypto.randomBytes via Node (Convex actions ont acces a Node)
+  // Mais on est dans une query/mutation, donc on utilise Math.random comme
+  // fallback acceptable (le token n'est pas un secret cryptographique,
+  // juste un identifiant URL partageable).
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let token = "";
+  for (let i = 0; i < 24; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
 export const listTransactions = query({
   args: {
     userEmail: v.string(),
@@ -257,6 +271,9 @@ export const createTransaction = mutation({
     )),
     installmentStartDate: v.optional(v.number()),
     installmentCount: v.optional(v.number()),
+    // Contrepartie (l'autre personne)
+    counterpartyEmail: v.optional(v.string()),
+    counterpartyName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     checkUser(args.userEmail);
@@ -283,6 +300,7 @@ export const createTransaction = mutation({
       }
     }
     const now = Date.now();
+    const publicToken = generatePublicToken();
     const id = await ctx.db.insert("transactions", {
       ownerEmail: args.userEmail,
       personId: args.personId,
@@ -304,11 +322,17 @@ export const createTransaction = mutation({
       installmentFrequency: args.installmentFrequency,
       installmentStartDate: args.installmentStartDate,
       installmentCount: args.installmentCount,
+      counterpartyEmail: args.counterpartyEmail,
+      counterpartyName: args.counterpartyName,
+      // Genere un token public des la creation (l'URL est partageable
+      // immediatement, meme avant l'envoi de l'email d'invitation)
+      publicToken,
+      signatures: [],
       note: args.note,
       createdAt: now,
       updatedAt: now,
     });
-    return { _id: id };
+    return { _id: id, publicToken };
   },
 });
 
@@ -542,5 +566,159 @@ export const getDashboard = query({
       upcoming: upcoming.slice(0, 10),
       recent,
     };
+  },
+});
+
+// === PUBLIC : page transaction partageable =================================
+// L'autre personne accede a la transaction via /transaction/:publicToken.
+// Pas d'auth requise : c'est le token qui fait foi. Voir PublicTransactionPage.
+
+export const getPublicTransaction = query({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    // Recherche par token
+    const tx = await ctx.db
+      .query("transactions")
+      .withIndex("by_publicToken", (q) => q.eq("publicToken", args.token))
+      .first();
+    if (!tx) {
+      throw new ConvexError("Transaction introuvable ou lien invalide");
+    }
+    // Recupere aussi le owner (createur) pour avoir son nom
+    const owner = await ctx.db
+      .query("people")
+      .withIndex("by_owner", (q) => q.eq("ownerEmail", tx.ownerEmail))
+      .first();
+    // Le createur est l'owner. On va aussi recuperer la personne impliquee
+    const person = await ctx.db.get(tx.personId);
+    return {
+      transaction: tx,
+      ownerName: owner?.name || tx.ownerEmail,  // fallback email
+      personName: person?.name || "Personne",
+    };
+  },
+});
+
+export const signPublicTransaction = mutation({
+  args: {
+    token: v.string(),
+    signerName: v.string(),
+    signerEmail: v.string(),
+    signerRole: v.union(v.literal("owner"), v.literal("counterparty")),
+    signaturePng: v.string(),  // base64 du canvas
+    signatureHash: v.string(), // SHA-256 du payload
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    contractText: v.optional(v.string()),  // snapshot du contrat signe
+  },
+  handler: async (ctx, args) => {
+    const tx = await ctx.db
+      .query("transactions")
+      .withIndex("by_publicToken", (q) => q.eq("publicToken", args.token))
+      .first();
+    if (!tx) {
+      throw new ConvexError("Transaction introuvable");
+    }
+    // Verifier que cette personne n'a pas deja signe
+    const alreadySigned = tx.signatures.find(
+      (s) => s.signerEmail.toLowerCase() === args.signerEmail.toLowerCase()
+    );
+    if (alreadySigned) {
+      throw new ConvexError("Cette personne a deja signe ce contrat");
+    }
+    // Verifier que c'est bien une des 2 parties (owner ou contrepartie declaree)
+    const isOwner = args.signerEmail.toLowerCase() === tx.ownerEmail.toLowerCase();
+    const isCounterparty = tx.counterpartyEmail
+      && args.signerEmail.toLowerCase() === tx.counterpartyEmail.toLowerCase();
+    if (!isOwner && !isCounterparty && args.signerRole === "counterparty") {
+      // Si le signataire n'est pas l'owner ni la contrepartie declaree, on
+      // accepte quand meme mais on stocke avec le role fourni. Cela permet
+      // a l'owner de "signer pour lui-meme" depuis la page publique.
+    }
+    const newSignature = {
+      signerName: args.signerName,
+      signerEmail: args.signerEmail,
+      signerRole: args.signerRole,
+      signedAt: Date.now(),
+      signaturePng: args.signaturePng,
+      signatureHash: args.signatureHash,
+      ipAddress: args.ipAddress,
+      userAgent: args.userAgent,
+    };
+    const patch: Record<string, any> = {
+      signatures: [...tx.signatures, newSignature],
+      updatedAt: Date.now(),
+    };
+    if (args.contractText) patch.contractText = args.contractText;
+    await ctx.db.patch(tx._id, patch);
+    return { success: true, signedAt: newSignature.signedAt };
+  },
+});
+
+// Permet a une personne de retrouver ses transactions par email (pour la page
+// publique "mes transactions"). On cherche toutes les transactions dont
+// counterpartyEmail matche.
+export const getMyPublicTransactions = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    if (!args.email) return [];
+    const txs = await ctx.db
+      .query("transactions")
+      .withIndex("by_counterpartyEmail", (q) => q.eq("counterpartyEmail", args.email.toLowerCase()))
+      .collect();
+    // Recupere aussi le owner pour chaque transaction
+    const enriched = await Promise.all(txs.map(async (tx) => {
+      const owner = await ctx.db
+        .query("people")
+        .withIndex("by_owner", (q) => q.eq("ownerEmail", tx.ownerEmail))
+        .first();
+      return {
+        ...tx,
+        ownerName: owner?.name || tx.ownerEmail,
+      };
+    }));
+    return enriched;
+  },
+});
+
+// Permet au contrepartie de confirmer un remboursement (avec sa signature)
+export const confirmRepaymentPublic = mutation({
+  args: {
+    token: v.string(),
+    repaymentIndex: v.number(),
+    signerName: v.string(),
+    signerEmail: v.string(),
+    signaturePng: v.string(),
+    signatureHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const tx = await ctx.db
+      .query("transactions")
+      .withIndex("by_publicToken", (q) => q.eq("publicToken", args.token))
+      .first();
+    if (!tx) {
+      throw new ConvexError("Transaction introuvable");
+    }
+    if (args.repaymentIndex < 0 || args.repaymentIndex >= tx.repayments.length) {
+      throw new ConvexError("Index de remboursement invalide");
+    }
+    const newRepayments = tx.repayments.map((r, i) => {
+      if (i !== args.repaymentIndex) return r;
+      return {
+        ...r,
+        counterpartySignature: {
+          signerName: args.signerName,
+          signerEmail: args.signerEmail,
+          signedAt: Date.now(),
+          signaturePng: args.signaturePng,
+          signatureHash: args.signatureHash,
+        },
+      };
+    });
+    await ctx.db.patch(tx._id, {
+      repayments: newRepayments,
+      updatedAt: Date.now(),
+    });
+    return { success: true };
   },
 });

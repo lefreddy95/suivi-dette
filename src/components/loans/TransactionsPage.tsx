@@ -4,7 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import {
   Plus, Search, Filter, ListChecks, HandCoins, Banknote, Package, PackageOpen,
   Wrench, WrenchIcon, Calendar, AlertCircle, Trash2, Check, CircleDollarSign,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Copy, X, CheckCircle2,
 } from 'lucide-react';
 import TransactionFormModal, { TYPES, type TransactionType } from './TransactionFormModal';
 
@@ -42,6 +42,8 @@ const TransactionsPage: React.FC<TransactionsPageProps> = ({
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   const [creatingType, setCreatingType] = useState<TransactionType | undefined>(undefined);
+  // Lien public généré après création (pour partager avec la contrepartie)
+  const [createdLink, setCreatedLink] = useState<string | null>(null);
 
   // === QUERIES ===
   const txs = useQuery(api.loans.listTransactions, {
@@ -206,6 +208,11 @@ const TransactionsPage: React.FC<TransactionsPageProps> = ({
         </ul>
       )}
 
+      {/* === LIEN PUBLIC À PARTAGER === */}
+      {createdLink && (
+        <CreatedLinkBanner link={createdLink} onClose={() => setCreatedLink(null)} />
+      )}
+
       {/* === MODALE === */}
       {creating && (
         <TransactionFormModal
@@ -214,7 +221,13 @@ const TransactionsPage: React.FC<TransactionsPageProps> = ({
           defaultType={creatingType}
           defaultPersonId={initialPersonId}
           onClose={() => setCreating(false)}
-          onSaved={() => setCreating(false)}
+          onSaved={(publicToken) => {
+            setCreating(false);
+            if (publicToken) {
+              const url = `${window.location.origin}/transaction/${publicToken}`;
+              setCreatedLink(url);
+            }
+          }}
         />
       )}
     </div>
@@ -372,3 +385,57 @@ function getTypeColor(type: string): { bg: string; text: string } {
 }
 
 export default TransactionsPage;
+
+// === BANNIÈRE : LIEN PUBLIC À PARTAGER ===
+const CreatedLinkBanner: React.FC<{ link: string; onClose: () => void }> = ({ link, onClose }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert('Copie impossible — voici le lien :\n' + link);
+    }
+  };
+  return (
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-4 shadow-md">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+          <CheckCircle2 className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-green-900">Transaction créée !</p>
+          <p className="text-sm text-green-700 mb-2">
+            Partage ce lien à l'autre personne pour qu'elle signe le contrat :
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={link}
+              readOnly
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+              className="flex-1 px-2 py-1.5 text-xs border border-green-300 rounded-md bg-white font-mono"
+            />
+            <button
+              onClick={copy}
+              className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-md flex items-center gap-1 whitespace-nowrap"
+            >
+              {copied ? <><Check className="w-3 h-3" /> Copié</> : <><Copy className="w-3 h-3" /> Copier</>}
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-500 mt-2">
+            💡 Ce lien est unique et sécurisé. L'autre personne pourra signer le contrat et confirmer chaque remboursement.
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 text-gray-400 hover:text-gray-600"
+          aria-label="Fermer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};

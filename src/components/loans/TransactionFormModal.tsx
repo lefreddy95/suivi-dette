@@ -4,6 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import {
   X, HandCoins, Banknote, Package, PackageOpen, Wrench, WrenchIcon,
   Calendar, AlertCircle, StickyNote, CircleDollarSign, Repeat, ChevronDown, ChevronUp,
+  FileSignature,
 } from 'lucide-react';
 
 interface TransactionFormModalProps {
@@ -15,7 +16,8 @@ interface TransactionFormModalProps {
   // Type pré-sélectionné (ex: bouton "+ Argent prêté" sur le dashboard)
   defaultType?: TransactionType;
   onClose: () => void;
-  onSaved: () => void;
+  // Passe le publicToken de la transaction créée (pour afficher le lien à partager)
+  onSaved: (publicToken?: string) => void;
 }
 
 type TransactionType =
@@ -123,6 +125,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     return d.toISOString().split('T')[0];
   });
   const [scheduleCount, setScheduleCount] = useState('');
+  // === Contrepartie (l'autre personne qui va signer le contrat) ===
+  const [counterpartyName, setCounterpartyName] = useState('');
+  const [counterpartyEmail, setCounterpartyEmail] = useState('');
 
   const isMoney = type === 'money_lent' || type === 'money_borrowed';
   // Si on change de type vers non-money, on reset l'échéancier
@@ -131,6 +136,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setHasSchedule(false);
     }
   }, [isMoney, hasSchedule]);
+
+  // Calcul auto du nombre d'echeances (montant total / montant par echeance)
+  const totalAmount = typeInfo.hasAmount ? parseFloat(amount) : 0;
+  const autoInstallmentCount = (hasSchedule && isMoney && totalAmount > 0 && scheduleAmount && parseFloat(scheduleAmount) > 0)
+    ? Math.ceil(totalAmount / parseFloat(scheduleAmount))
+    : null;
 
   // Si pas de defaultPersonId, préselectionner la première personne
   useEffect(() => {
@@ -175,7 +186,13 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       const dueDateMs = dueDate ? new Date(dueDate).getTime() : undefined;
       const schedStartMs = hasSchedule && scheduleStartDate
         ? new Date(scheduleStartDate).getTime() : undefined;
-      await createMut({
+      // Calcul auto du nombre d'echeances si pas renseigne manuellement
+      const finalScheduleCount = hasSchedule
+        ? (scheduleCount
+            ? parseInt(scheduleCount, 10)
+            : (autoInstallmentCount ?? undefined))
+        : undefined;
+      const result = await createMut({
         userEmail,
         personId: personId as any,
         type,
@@ -189,9 +206,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         installmentAmount: hasSchedule && isMoney ? parseFloat(scheduleAmount) : undefined,
         installmentFrequency: hasSchedule && isMoney ? scheduleFrequency : undefined,
         installmentStartDate: schedStartMs,
-        installmentCount: hasSchedule && scheduleCount ? parseInt(scheduleCount, 10) : undefined,
+        installmentCount: finalScheduleCount,
+        counterpartyEmail: counterpartyEmail.trim() || undefined,
+        counterpartyName: counterpartyName.trim() || undefined,
       });
-      onSaved();
+      // Si on a une URL publique, on l'affiche (la modale parent peut l'utiliser)
+      onSaved(result?.publicToken);
     } catch (e) {
       alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
     } finally {
@@ -241,6 +261,44 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* === CONTREPARTIE (pour contrat / signature) === */}
+        <div className="border-2 border-blue-100 rounded-xl p-3 bg-blue-50/40">
+          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <FileSignature className="w-3.5 h-3.5" />
+            Contrepartie (optionnel — pour le contrat)
+          </p>
+          <p className="text-[11px] text-gray-600 mb-2">
+            Renseigne le nom et l'email de l'autre personne pour qu'elle puisse signer le contrat
+            via un lien sécurisé (sans créer de compte).
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Nom
+              </label>
+              <input
+                type="text"
+                value={counterpartyName}
+                onChange={(e) => setCounterpartyName(e.target.value)}
+                placeholder="Jean Dupont"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={counterpartyEmail}
+                onChange={(e) => setCounterpartyEmail(e.target.value)}
+                placeholder="jean@example.com"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
+              />
+            </div>
           </div>
         </div>
 
@@ -417,7 +475,15 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Nb d'échéances <span className="text-gray-400">(opt.)</span>
+                      Nb d'échéances{' '}
+                      {autoInstallmentCount && !scheduleCount && (
+                        <span className="text-orange-600 font-semibold">
+                          (auto : {autoInstallmentCount})
+                        </span>
+                      )}
+                      {!autoInstallmentCount && (
+                        <span className="text-gray-400">(opt.)</span>
+                      )}
                     </label>
                     <input
                       type="number"

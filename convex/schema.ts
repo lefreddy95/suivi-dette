@@ -142,19 +142,46 @@ export default defineSchema({
       amount: v.number(),
       date: v.number(),
       note: v.optional(v.string()),
+      // Signature de la contrepartie qui confirme le remboursement
+      counterpartySignature: v.optional(v.object({
+        signerName: v.string(),
+        signerEmail: v.string(),
+        signedAt: v.number(),
+        signaturePng: v.string(),    // base64 du canvas
+        signatureHash: v.string(),   // SHA-256 du PNG + métadonnées
+      })),
     })),
     // === Échéancier de remboursement (pour money_lent / money_borrowed) ===
-    // Si defini, l'app calcule les N prochaines échéances et les affiche dans
-    // la fiche personne + dashboard. Aucun job cron : on génère à la volée.
-    installmentAmount: v.optional(v.number()),  // montant par échéance
+    installmentAmount: v.optional(v.number()),
     installmentFrequency: v.optional(v.union(
-      v.literal("weekly"),      // chaque semaine
-      v.literal("biweekly"),    // toutes les 2 semaines
-      v.literal("monthly"),     // chaque mois
-      v.literal("quarterly")    // chaque trimestre
+      v.literal("weekly"),
+      v.literal("biweekly"),
+      v.literal("monthly"),
+      v.literal("quarterly")
     )),
-    installmentStartDate: v.optional(v.number()),  // epoch ms — 1ère échéance
-    installmentCount: v.optional(v.number()),  // nb total d'échéances (optionnel = infini)
+    installmentStartDate: v.optional(v.number()),
+    installmentCount: v.optional(v.number()),
+    // === Contrepartie (l'autre personne impliquée) ===
+    counterpartyEmail: v.optional(v.string()),  // email de l'autre personne
+    counterpartyName: v.optional(v.string()),   // nom affiché sur la page publique
+    // === Token public (URL partageable /transaction/:token) ===
+    publicToken: v.optional(v.string()),
+    // === Signatures au niveau du contrat (par les 2 parties) ===
+    signatures: v.array(v.object({
+      signerName: v.string(),
+      signerEmail: v.string(),
+      signerRole: v.union(
+        v.literal("owner"),        // le créateur de la transaction
+        v.literal("counterparty")  // l'autre personne
+      ),
+      signedAt: v.number(),
+      signaturePng: v.string(),    // base64 du canvas
+      signatureHash: v.string(),   // SHA-256 du PNG + métadonnées
+      ipAddress: v.optional(v.string()),
+      userAgent: v.optional(v.string()),
+    })),
+    // === Métadonnées du contrat généré ===
+    contractText: v.optional(v.string()),  // snapshot du contrat au moment de la signature
     // === Audit ===
     note: v.optional(v.string()),
     createdAt: v.number(),
@@ -164,7 +191,9 @@ export default defineSchema({
     .index("by_person", ["personId"])
     .index("by_owner_status", ["ownerEmail", "status"])
     .index("by_owner_type", ["ownerEmail", "type"])
-    .index("by_owner_dueDate", ["ownerEmail", "dueDate"]),
+    .index("by_owner_dueDate", ["ownerEmail", "dueDate"])
+    .index("by_publicToken", ["publicToken"])
+    .index("by_counterpartyEmail", ["counterpartyEmail"]),
 
   // Rappels (notifications à venir)
   reminders: defineTable({

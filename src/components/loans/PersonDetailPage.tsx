@@ -5,7 +5,7 @@ import {
   ArrowLeft, Mail, Phone, StickyNote, Plus, Check, X,
   Banknote, HandCoins, Package, PackageOpen, Wrench, WrenchIcon,
   Calendar, AlertCircle, Trash2, TrendingUp, TrendingDown,
-  CircleDollarSign, ChevronRight, Repeat,
+  CircleDollarSign, ChevronRight, Repeat, FileSignature, Copy,
 } from 'lucide-react';
 
 interface PersonDetailPageProps {
@@ -480,6 +480,29 @@ const TransactionCard: React.FC<{
             <span className="text-[10px] text-gray-400 mr-auto">
               {tx.repayments.length} remboursement{tx.repayments.length > 1 ? 's' : ''}
             </span>
+          )}
+          {/* Badge signatures */}
+          {tx.signatures && tx.signatures.length > 0 && (
+            <span className="text-[10px] text-green-700 font-semibold mr-auto flex items-center gap-1">
+              <FileSignature className="w-3 h-3" />
+              {tx.signatures.length}/2 signé{tx.signatures.length > 1 ? 's' : ''}
+            </span>
+          )}
+          {/* Bouton copier le lien public */}
+          {tx.publicToken && (
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/transaction/${tx.publicToken}`;
+                navigator.clipboard.writeText(url)
+                  .then(() => alert('✓ Lien copié !\n\nPartage-le à l\'autre personne pour qu\'elle signe le contrat.'))
+                  .catch(() => prompt('Copie ce lien :', url));
+              }}
+              className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md flex items-center gap-1"
+              title="Copier le lien à partager avec l'autre personne"
+            >
+              <Copy className="w-3 h-3" />
+              Lien
+            </button>
           )}
           {onRepay && remaining > 0 && (
             <button
