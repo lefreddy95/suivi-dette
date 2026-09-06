@@ -938,9 +938,16 @@ const PaymentRow: React.FC<{
   // En clair : on peut signer si on est en vue vendeur (réelle ou preview)
   const canShowSignButton = viewAsVendeur;
   const canCancel = !viewAsVendeur && isAcheteur;
-  // Suppression réservée à l'acheteur, ET seulement si pas signé ni versé
-  // (les paiements versés/signés ont une valeur juridique/comptable)
-  const canDelete = !viewAsVendeur && isAcheteur && !isPaid;
+  // Suppression réservée à l'acheteur.
+  // - Jamais sur un paiement signé (juridique)
+  // - Jamais sur une MENSUALITÉ versée (mensualité du calendrier = engagement)
+  // - Possible sur un paiement ANNULÉ (pour corriger un double-clic)
+  // - Possible sur un paiement EN ATTENTE (correction de planning)
+  // - Possible sur un paiement PONCTUEL versé (acompte, erreur d'encodage)
+  const canDelete = !viewAsVendeur
+    && isAcheteur
+    && !isSigned
+    && !(payment.status === 'verse' && payment.type !== 'ponctuel');
   const canWhatsapp = !viewAsVendeur && isAcheteur;
   const canSms = !viewAsVendeur && isAcheteur;
 

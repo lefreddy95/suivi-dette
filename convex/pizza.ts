@@ -609,9 +609,12 @@ export const deletePayment = mutation({
     if (p.signature) {
       throw new ConvexError("Impossible de supprimer un paiement déjà signé. C'est une signature juridique définitive.");
     }
-    if (p.status === "verse") {
+    // Les MENSUALITÉS versées sont des engagements du calendrier → on refuse
+    // la suppression. Mais les paiements PONCTUELS versés (acomptes) peuvent
+    // être supprimés (correction d'erreur d'encodage, doublon, etc.).
+    if (p.status === "verse" && p.type !== "ponctuel") {
       throw new ConvexError(
-        "Impossible de supprimer un paiement marqué 'versé'. " +
+        "Impossible de supprimer une mensualité 'versée'. " +
         "Crée plutôt un paiement compensatoire négatif ou annule et recrée."
       );
     }
