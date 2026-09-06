@@ -441,6 +441,52 @@ export const getDashboard = query({
       .withIndex("by_owner", (q) => q.eq("ownerEmail", args.userEmail))
       .collect()).length;
 
+    // ============================================================
+    // === INTEGRATION DETTE CAMION PIZZA (legacy suivi-dette) ===
+    // ============================================================
+    // Le projet evolue vers Kuidi, mais la dette du camion pizza
+    // (Freddy -> Francky, 30 000 € en 60 mensualites) reste dans les
+    // anciennes tables pizzaConfig/pizzaPayments. On l'integre ici
+    // pour que le user voie tout au meme endroit.
+    // TODO Phase 4 : migrer ces paiements en transactions Kuidi.
+    const pizzaConfig = await ctx.db.query("pizzaConfig").first();
+    let pizzaDebt: { remaining: number; camionName: string; mensualite: number; paidCount: number; totalCount: number } | null = null;
+    if (pizzaConfig) {
+      // Calcule le total paye sur la dette du camion (mensuels + ponctuels "verse")
+      const allPizzaPayments = await ctx.db.query("pizzaPayments").collect();
+      const pizzaPaid = allPizzaPayments
+        .filter((p) => p.status === "verse" && !p.signature?.signedByEmail)
+        .reduce((s, p) => s + p.montant, 0);
+      const pizzaRemaining = Math.max(0, pizzaConfig.prixTotal - pizzaPaid);
+      const pizzaPaidCount = allPizzaPayments.filter((p) => p.status === "verse").length;
+      const pizzaTotalCount = allPizzaPayments.filter((p) => p.type !== "ponctuel").length;
+      // Ajouter au compteur "Tu dois" (Freddy doit de l'argent pour le camion)
+      iOwe += pizzaRemaining;
+      // Et aux prochaines échéances (la prochaine mensualité du camion)
+      const nextMensual = allPizzaPayments
+        .filter((p) => p.type !== "ponctuel" && p.status === "en_attente")
+        .sort((a, b) => a.dateEcheance - b.dateEcheance)[0];
+      if (nextMensual && nextMensual.dateEcheance <= in30Days) {
+        upcoming.unshift({
+          _id: "pizza:" + nextMensual._id,
+          title: `${pizzaConfig.nomCamion} - mensualité n°${nextMensual.numero}`,
+          type: "money_borrowed",
+          personId: null,
+          dueDate: nextMensual.dateEcheance,
+          amount: nextMensual.montant,
+          totalRepaid: 0,
+          isLegacyPizza: true,
+        });
+      }
+      pizzaDebt = {
+        remaining: pizzaRemaining,
+        camionName: pizzaConfig.nomCamion,
+        mensualite: pizzaConfig.montantMensuel,
+        paidCount: pizzaPaidCount,
+        totalCount: pizzaTotalCount,
+      };
+    }
+
     return {
       summary: {
         owedToMe,
@@ -449,6 +495,7 @@ export const getDashboard = query({
         servicesTodo,
         peopleCount,
         activeCount: activeTxs.length,
+        pizzaDebt,    // null si pas de dette camion (ou deja totalement payee)
       },
       upcoming: upcoming.slice(0, 10),
       recent,

@@ -121,6 +121,39 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         />
       </section>
 
+      {/* === SECTION 2b : DETTE CAMION PIZZA (legacy suivi-dette) === */}
+      {summary.pizzaDebt && summary.pizzaDebt.remaining > 0 && (
+        <section className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-5 shadow-md">
+          <div className="flex items-start gap-3">
+            <div className="text-3xl flex-shrink-0">🚗</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs uppercase tracking-wider text-amber-800 font-bold">
+                Dette speciale
+              </p>
+              <h2 className="text-lg font-bold text-amber-900">
+                {summary.pizzaDebt.camionName}
+              </h2>
+              <p className="text-sm text-amber-800 mt-1">
+                Mensualites de <strong>{summary.pizzaDebt.mensualite.toLocaleString('fr-FR')} €</strong> ·{' '}
+                {summary.pizzaDebt.paidCount}/{summary.pizzaDebt.totalCount} payees
+              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-2xl font-bold text-amber-900">
+                  {summary.pizzaDebt.remaining.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+                </span>
+                <button
+                  onClick={() => onViewAllTransactions()}
+                  className="text-xs text-amber-700 hover:text-amber-900 font-semibold flex items-center gap-1"
+                >
+                  Voir le calendrier
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* === SECTION 3 : PROCHAINES ÉCHÉANCES === */}
       {upcoming.length > 0 && (
         <section className="bg-white rounded-2xl shadow-lg p-5">
