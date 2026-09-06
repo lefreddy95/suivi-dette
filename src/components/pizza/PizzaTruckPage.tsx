@@ -9,6 +9,7 @@ import SettingsPage from './SettingsPage';
 import DashboardPage from '../loans/DashboardPage';
 import PeoplePage from '../loans/PeoplePage';
 import PersonDetailPage from '../loans/PersonDetailPage';
+import TransactionsPage from '../loans/TransactionsPage';
 import {
   Pizza, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
@@ -68,10 +69,14 @@ const PizzaTruckPage: React.FC = () => {
   // de l'user connecté). Le preview est purement visuel.
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
   // Onglet principal : 'kuidi' (Dashboard), 'kuidi-people', 'kuidi-person-detail',
-  // 'camion' (legacy), 'contrat', 'parametres'
-  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'camion' | 'contrat' | 'parametres'>('kuidi');
+  // 'kuidi-transactions' (liste globale), 'camion' (legacy), 'contrat', 'parametres'
+  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'camion' | 'contrat' | 'parametres'>('kuidi');
   // ID de la personne selectionnee (pour le detail)
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  // Filtre personne pré-appliqué quand on arrive sur TransactionsPage depuis une personne
+  const [transactionFilterPersonId, setTransactionFilterPersonId] = useState<string | null>(null);
+  // Auto-open create modal quand on clique sur "+" depuis le Dashboard
+  const [autoCreateTransaction, setAutoCreateTransaction] = useState(false);
   // Rôle effectif affiché
   const displayAsVendeur = isVendeur || (isAcheteur && previewAs === 'vendeur');
   // Actions admin affichées seulement si acheteur ET pas en preview vendeur
@@ -443,9 +448,9 @@ const PizzaTruckPage: React.FC = () => {
 
   // ===== RENDER =====
 
-  // Page Kuidi (Dashboard + People + Person detail) : nouveau tracker de prêts, plein écran.
+  // Page Kuidi (Dashboard + People + Person detail + Transactions) : nouveau tracker de prêts, plein écran.
   // Pour l'instant intégré temporairement dans PizzaTruckPage (refonte future).
-  if (currentView === 'kuidi' || currentView === 'kuidi-people' || currentView === 'kuidi-person-detail') {
+  if (currentView === 'kuidi' || currentView === 'kuidi-people' || currentView === 'kuidi-person-detail' || currentView === 'kuidi-transactions') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
         <header className="bg-white border-b-2 border-orange-200 shadow-sm sticky top-0 z-10">
@@ -474,8 +479,12 @@ const PizzaTruckPage: React.FC = () => {
                 Personnes
               </button>
               <button
-                onClick={() => alert('Liste des transactions arrive au commit 1.4/4 !')}
-                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
+                onClick={() => { setCurrentView('kuidi-transactions'); setTransactionFilterPersonId(null); setAutoCreateTransaction(false); }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                  currentView === 'kuidi-transactions'
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
               >
                 Transactions
               </button>
@@ -502,9 +511,9 @@ const PizzaTruckPage: React.FC = () => {
             <DashboardPage
               userEmail={userEmail!}
               onSelectPerson={(id) => { setSelectedPersonId(id); setCurrentView('kuidi-person-detail'); }}
-              onSelectTransaction={(id) => alert('Detail transaction arrive au commit 1.4/4 !')}
-              onNewTransaction={() => alert('Modale de creation arrive au commit 1.4/4 !')}
-              onViewAllTransactions={() => alert('Liste des transactions arrive au commit 1.4/4 !')}
+              onSelectTransaction={(id) => { setTransactionFilterPersonId(null); setAutoCreateTransaction(false); setCurrentView('kuidi-transactions'); }}
+              onNewTransaction={() => { setTransactionFilterPersonId(null); setAutoCreateTransaction(true); setCurrentView('kuidi-transactions'); }}
+              onViewAllTransactions={() => { setTransactionFilterPersonId(null); setAutoCreateTransaction(false); setCurrentView('kuidi-transactions'); }}
               onViewPeople={() => { setCurrentView('kuidi-people'); setSelectedPersonId(null); }}
             />
           )}
@@ -519,6 +528,14 @@ const PizzaTruckPage: React.FC = () => {
               userEmail={userEmail!}
               personId={selectedPersonId}
               onBack={() => setCurrentView('kuidi-people')}
+            />
+          )}
+          {currentView === 'kuidi-transactions' && (
+            <TransactionsPage
+              userEmail={userEmail!}
+              initialPersonId={transactionFilterPersonId ?? undefined}
+              autoCreate={autoCreateTransaction}
+              onSelectPerson={(id) => { setSelectedPersonId(id); setCurrentView('kuidi-person-detail'); }}
             />
           )}
         </main>
