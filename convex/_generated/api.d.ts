@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as loans from "../loans.js";
 import type * as pizza from "../pizza.js";
 
 import type {
@@ -17,6 +18,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  loans: typeof loans;
   pizza: typeof pizza;
 }>;
 

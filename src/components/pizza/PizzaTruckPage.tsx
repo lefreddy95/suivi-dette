@@ -7,6 +7,8 @@ import PizzaTruckAnimation from './PizzaTruckAnimation';
 import ContractPage from './ContractPage';
 import SettingsPage from './SettingsPage';
 import DashboardPage from '../loans/DashboardPage';
+import PeoplePage from '../loans/PeoplePage';
+import PersonDetailPage from '../loans/PersonDetailPage';
 import {
   Pizza, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
@@ -65,10 +67,11 @@ const PizzaTruckPage: React.FC = () => {
   // ⚠️ Les mutations Convex utilisent TOUJOURS isAcheteur (le vrai rôle
   // de l'user connecté). Le preview est purement visuel.
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
-  // Onglet principal : 'kuidi' (Kuidi Dashboard, defaut), 'camion' (PizzaTruck),
-  // 'contrat' ou 'parametres'. Note : 'camion' est le legacy suivi-dette, conserve
-  // pour la migration douce. Le default est passe a 'kuidi' pour la refonte.
-  const [currentView, setCurrentView] = useState<'kuidi' | 'camion' | 'contrat' | 'parametres'>('kuidi');
+  // Onglet principal : 'kuidi' (Dashboard), 'kuidi-people', 'kuidi-person-detail',
+  // 'camion' (legacy), 'contrat', 'parametres'
+  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'camion' | 'contrat' | 'parametres'>('kuidi');
+  // ID de la personne selectionnee (pour le detail)
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   // Rôle effectif affiché
   const displayAsVendeur = isVendeur || (isAcheteur && previewAs === 'vendeur');
   // Actions admin affichées seulement si acheteur ET pas en preview vendeur
@@ -440,9 +443,9 @@ const PizzaTruckPage: React.FC = () => {
 
   // ===== RENDER =====
 
-  // Page Kuidi (Dashboard) : nouveau tracker de prêts, plein écran.
+  // Page Kuidi (Dashboard + People + Person detail) : nouveau tracker de prêts, plein écran.
   // Pour l'instant intégré temporairement dans PizzaTruckPage (refonte future).
-  if (currentView === 'kuidi') {
+  if (currentView === 'kuidi' || currentView === 'kuidi-people' || currentView === 'kuidi-person-detail') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
         <header className="bg-white border-b-2 border-orange-200 shadow-sm sticky top-0 z-10">
@@ -454,18 +457,24 @@ const PizzaTruckPage: React.FC = () => {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setCurrentView('kuidi')}
-                className="px-3 py-1.5 text-sm font-medium rounded-md bg-orange-100 text-orange-700"
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                  currentView === 'kuidi' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
+                }`}
               >
                 Dashboard
               </button>
               <button
-                onClick={() => setCurrentView('kuidi-people')}
-                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
+                onClick={() => { setCurrentView('kuidi-people'); setSelectedPersonId(null); }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                  currentView === 'kuidi-people' || currentView === 'kuidi-person-detail'
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
               >
                 Personnes
               </button>
               <button
-                onClick={() => setCurrentView('kuidi-transactions')}
+                onClick={() => alert('Liste des transactions arrive au commit 1.4/4 !')}
                 className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
               >
                 Transactions
@@ -489,14 +498,29 @@ const PizzaTruckPage: React.FC = () => {
           </div>
         </header>
         <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-          <DashboardPage
-            userEmail={userEmail!}
-            onSelectPerson={(id) => setCurrentView('kuidi-people')}
-            onSelectTransaction={(id) => setCurrentView('kuidi-transactions')}
-            onNewTransaction={() => alert('Modale de création arrive au commit 1.4/4 !')}
-            onViewAllTransactions={() => setCurrentView('kuidi-transactions')}
-            onViewPeople={() => setCurrentView('kuidi-people')}
-          />
+          {currentView === 'kuidi' && (
+            <DashboardPage
+              userEmail={userEmail!}
+              onSelectPerson={(id) => { setSelectedPersonId(id); setCurrentView('kuidi-person-detail'); }}
+              onSelectTransaction={(id) => alert('Detail transaction arrive au commit 1.4/4 !')}
+              onNewTransaction={() => alert('Modale de creation arrive au commit 1.4/4 !')}
+              onViewAllTransactions={() => alert('Liste des transactions arrive au commit 1.4/4 !')}
+              onViewPeople={() => { setCurrentView('kuidi-people'); setSelectedPersonId(null); }}
+            />
+          )}
+          {currentView === 'kuidi-people' && (
+            <PeoplePage
+              userEmail={userEmail!}
+              onSelectPerson={(id) => { setSelectedPersonId(id); setCurrentView('kuidi-person-detail'); }}
+            />
+          )}
+          {currentView === 'kuidi-person-detail' && selectedPersonId && (
+            <PersonDetailPage
+              userEmail={userEmail!}
+              personId={selectedPersonId}
+              onBack={() => setCurrentView('kuidi-people')}
+            />
+          )}
         </main>
       </div>
     );
