@@ -167,7 +167,9 @@ export default defineSchema({
     // === Token public (URL partageable /transaction/:token) ===
     publicToken: v.optional(v.string()),
     // === Signatures au niveau du contrat (par les 2 parties) ===
-    signatures: v.array(v.object({
+    // Optionnel pour la compatibilite avec les transactions creees avant
+    // l'ajout du systeme de signatures. Le code utilise `?? []` partout.
+    signatures: v.optional(v.array(v.object({
       signerName: v.string(),
       signerEmail: v.string(),
       signerRole: v.union(
@@ -179,7 +181,7 @@ export default defineSchema({
       signatureHash: v.string(),   // SHA-256 du PNG + métadonnées
       ipAddress: v.optional(v.string()),
       userAgent: v.optional(v.string()),
-    })),
+    }))),
     // === Métadonnées du contrat généré ===
     contractText: v.optional(v.string()),  // snapshot du contrat au moment de la signature
     // === Audit ===
