@@ -5,6 +5,7 @@ import { api } from '../../../convex/_generated/api';
 import './pizza-animations.css';
 import PizzaTruckAnimation from './PizzaTruckAnimation';
 import ContractPage from './ContractPage';
+import SettingsPage from './SettingsPage';
 import {
   Pizza, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
@@ -63,8 +64,8 @@ const PizzaTruckPage: React.FC = () => {
   // ⚠️ Les mutations Convex utilisent TOUJOURS isAcheteur (le vrai rôle
   // de l'user connecté). Le preview est purement visuel.
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
-  // Onglet principal : 'calendrier' (vue par défaut) ou 'contrat'
-  const [currentView, setCurrentView] = useState<'calendrier' | 'contrat'>('calendrier');
+  // Onglet principal : 'calendrier' (vue par défaut), 'contrat' ou 'parametres'
+  const [currentView, setCurrentView] = useState<'calendrier' | 'contrat' | 'parametres'>('calendrier');
   // Rôle effectif affiché
   const displayAsVendeur = isVendeur || (isAcheteur && previewAs === 'vendeur');
   // Actions admin affichées seulement si acheteur ET pas en preview vendeur
@@ -110,6 +111,7 @@ const PizzaTruckPage: React.FC = () => {
   const recalculateScheduleMut = useMutation(api.pizza.recalculateSchedule);
   const createAdHocPaymentMut = useMutation(api.pizza.createAdHocPayment);
   const migratePaymentLabelsMut = useMutation(api.pizza.migratePaymentLabels);
+  const resetContractMut = useMutation(api.pizza.resetContract);
   const sendSmsToVendorAct = useAction(api.pizza.sendSmsToVendor);
 
   // ===== CHARGEMENT =====
@@ -294,6 +296,22 @@ const PizzaTruckPage: React.FC = () => {
     }
   };
 
+  const handleResetContract = async () => {
+    if (!userEmail) return;
+    if (!window.confirm(
+      'RESET des 2 signatures du contrat ?\n\n' +
+      '⚠️ Action admin : les 2 signatures seront supprimees. ' +
+      'A utiliser SEULEMENT en cas d\'accord des 2 parties pour revoquer le contrat. ' +
+      'Les signatures individuelles des paiements NE SONT PAS affectees.'
+    )) return;
+    try {
+      await resetContractMut({ userEmail });
+      alert('Signatures du contrat reinitialisees.');
+    } catch (e) {
+      alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
+    }
+  };
+
   const handleRecalculate = async () => {
     if (!userEmail) return;
     if (!window.confirm('Recalculer le calendrier de versements ? (Les paiements déjà versés/signés sont préservés)')) return;
@@ -418,6 +436,23 @@ const PizzaTruckPage: React.FC = () => {
   };
 
   // ===== RENDER =====
+
+  // Page Parametres : retour anticipé pour avoir une vraie page PLEIN ECRAN
+  // (au lieu d'une modal qui sort de l'ecran sur petits viewports).
+  if (currentView === 'parametres') {
+    return (
+      <SettingsPage
+        config={cfg}
+        userEmail={userEmail!}
+        isAcheteur={isAcheteur}
+        onClose={() => setCurrentView('calendrier')}
+        onSaved={() => { /* les queries Convex se rafraichissent automatiquement */ }}
+        onRecalculate={handleRecalculate}
+        onResetContract={isAcheteur ? handleResetContract : undefined}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
       {/* CONFETTIS */}
@@ -483,7 +518,7 @@ const PizzaTruckPage: React.FC = () => {
               )}
               {showAdminActions && (
                 <button
-                  onClick={() => setEditConfig(true)}
+                  onClick={() => setCurrentView('parametres')}
                   className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
                   title="Paramètres"
                 >
@@ -520,7 +555,7 @@ const PizzaTruckPage: React.FC = () => {
             )}
             {showAdminActions && (
               <button
-                onClick={() => setEditConfig(true)}
+                onClick={() => setCurrentView('parametres')}
                 className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md"
                 title="Paramètres"
               >
@@ -722,6 +757,19 @@ const PizzaTruckPage: React.FC = () => {
               </span>
             )}
           </button>
+          {showAdminActions && (
+            <button
+              onClick={() => setCurrentView('parametres')}
+              className={`px-4 py-2 font-bold text-sm border-b-4 -mb-0.5 transition-colors flex items-center gap-2 ${
+                currentView === 'parametres'
+                  ? 'border-gray-700 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Settings className="w-4 h-4 -mt-0.5" />
+              Parametres
+            </button>
+          )}
         </div>
 
         <div className={currentView === 'calendrier' ? '' : 'hidden'}>
@@ -843,15 +891,6 @@ const PizzaTruckPage: React.FC = () => {
         />
       )}
       </main>
-
-      {/* ===== MODAL : MODIFIER LA CONFIG (admin) ===== */}
-      {editConfig && cfg && (
-        <EditConfigModal
-          config={cfg}
-          onClose={() => setEditConfig(false)}
-          onSave={handleUpdateConfig}
-        />
-      )}
 
       {/* ===== MODAL : SIGNATURE (vendeur) ===== */}
       {showSignatureModal && (() => {
