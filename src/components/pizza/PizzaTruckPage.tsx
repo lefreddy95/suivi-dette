@@ -1283,6 +1283,11 @@ const EditConfigModal: React.FC<{
   const [prixTotal, setPrixTotal] = useState(config.prixTotal);
   const [montantMensuel, setMontantMensuel] = useState(config.montantMensuel);
   const [nomCamion, setNomCamion] = useState(config.nomCamion);
+  // Date de démarrage des versements. Stockée en epoch ms dans la DB ;
+  // convertie en YYYY-MM-DD pour l'input HTML5 type="date".
+  const [dateDebut, setDateDebut] = useState<string>(
+    new Date(config.dateDebut).toISOString().split('T')[0]
+  );
   const [acheteurPhotoUrl, setAcheteurPhotoUrl] = useState(config.acheteurPhotoUrl || '');
   const [vendeurPhotoUrl, setVendeurPhotoUrl] = useState(config.vendeurPhotoUrl || '');
   const [vendeurPhone, setVendeurPhone] = useState(config.vendeurPhone || '');
@@ -1396,6 +1401,24 @@ const EditConfigModal: React.FC<{
             />
           </div>
         </div>
+        {/* Date de démarrage du 1er versement (= dateDebut dans la DB) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-orange-600" />
+            Date du 1er versement
+          </label>
+          <input
+            type="date"
+            value={dateDebut}
+            onChange={(e) => setDateDebut(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Date a laquelle la 1ere mensualite est due. Apres modification, clique
+            <strong> "Recalculer" </strong> dans la barre du calendrier pour regenerer
+            les echeances a partir de cette nouvelle date.
+          </p>
+        </div>
         {/* Photos acheteur + vendeur (avec upload ou URL) */}
         <div className="grid grid-cols-2 gap-3">
           <PhotoField
@@ -1438,7 +1461,17 @@ const EditConfigModal: React.FC<{
             Annuler
           </button>
           <button
-            onClick={() => onSave({ prixTotal, montantMensuel, nomCamion, acheteurPhotoUrl, vendeurPhotoUrl, vendeurPhone, acheteurEmail, vendeurEmail })}
+            onClick={() => onSave({
+              prixTotal,
+              montantMensuel,
+              nomCamion,
+              dateDebut: dateDebut ? new Date(dateDebut).getTime() : undefined,
+              acheteurPhotoUrl,
+              vendeurPhotoUrl,
+              vendeurPhone,
+              acheteurEmail,
+              vendeurEmail,
+            })}
             className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold"
           >
             <Save className="w-4 h-4 inline mr-1" />
