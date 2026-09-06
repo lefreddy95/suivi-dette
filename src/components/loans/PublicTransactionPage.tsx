@@ -42,6 +42,22 @@ const PublicTransactionPage: React.FC<PublicTransactionPageProps> = ({ token }) 
     }
   }, [data, signerEmail]);
 
+  // Determiner si l'email du signataire correspond a l'owner ou a la contrepartie.
+  // IMPORTANT : declare ce useEffect AVANT les early returns, sinon violation
+  // des Regles des Hooks (cf. memory : useEffect avant early returns).
+  // Le callback reference 'tx' qui sera defini plus bas dans le scope — c'est
+  // OK car le callback n'est execute qu'apres le render, quand 'tx' existe.
+  useEffect(() => {
+    const tx = data?.transaction;
+    if (signerEmail && tx) {
+      if (signerEmail.toLowerCase() === tx.ownerEmail.toLowerCase()) {
+        setSignerRole('owner');
+      } else {
+        setSignerRole('counterparty');
+      }
+    }
+  }, [signerEmail, data]);
+
   if (data === undefined) {
     return <CenterMessage>Chargement…</CenterMessage>;
   }
@@ -62,17 +78,6 @@ const PublicTransactionPage: React.FC<PublicTransactionPageProps> = ({ token }) 
   const remaining = (tx.amount ?? 0) - tx.totalRepaid;
   const formatAmount = (n: number) =>
     n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  // Determiner si l'email du signataire correspond a l'owner ou a la contrepartie
-  useEffect(() => {
-    if (signerEmail && tx) {
-      if (signerEmail.toLowerCase() === tx.ownerEmail.toLowerCase()) {
-        setSignerRole('owner');
-      } else {
-        setSignerRole('counterparty');
-      }
-    }
-  }, [signerEmail, tx]);
 
   // Verifier si cette personne a deja signe
   const alreadySignedAsRole = (role: 'owner' | 'counterparty') =>
