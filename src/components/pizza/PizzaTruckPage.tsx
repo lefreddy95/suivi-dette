@@ -1031,7 +1031,7 @@ const PaymentRow: React.FC<{
   // sont renumérotés 2..61 par date d'échéance.
 
   return (
-    <li className={`p-3 sm:p-4 flex items-start gap-3 ${bgClass} ${!isCancelled && !isSigned && isOverdue ? 'pulse-attention' : ''}`}>
+    <li className={`p-3 sm:p-4 flex flex-col gap-3 sm:flex-row sm:items-start ${bgClass} ${!isCancelled && !isSigned && isOverdue ? 'pulse-attention' : ''}`}>
       <div className="flex-shrink-0 mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -1087,7 +1087,7 @@ const PaymentRow: React.FC<{
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+      <div className="flex items-center gap-1 flex-wrap sm:flex-shrink-0 sm:justify-end sm:ml-auto">
         {!isCancelled && !isPaid && canMarkPaid && (
           <button
             onClick={onMarkPaid}
