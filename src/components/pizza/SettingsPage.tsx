@@ -3,7 +3,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
   Settings, Save, X, MessageCircle, Calendar, Upload, Camera, Image as ImageIcon,
-  AlertTriangle, RefreshCw, FileSignature,
+  AlertTriangle, RefreshCw, FileSignature, Wrench,
 } from 'lucide-react';
 
 const ACHETEUR_EMAIL = 'lefreddy95@gmail.com';
@@ -37,7 +37,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   onRecalculate, onResetContract,
 }) => {
   const updateConfigMut = useMutation(api.pizza.updateConfig);
+  const migrateCamionMut = useMutation(api.loans.migrateCamionToKuidi);
   const [saving, setSaving] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // === ÉTATS LOCAUX (formulaire) ===
@@ -395,6 +397,41 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               </button>
             )}
           </div>
+        </section>
+
+        {/* === SECTION 5 : MIGRATION === */}
+        <section className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 space-y-3">
+          <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+            <Wrench className="w-5 h-5" />
+            Migration Kuidi
+          </h2>
+          <p className="text-sm text-blue-800">
+            Migre la transaction "camion" legacy (créée avant l'ajout des signatures)
+            pour qu'elle bénéficie des nouvelles features (contrepartie Francky, lien
+            de signature public, échéancier 500 €/mois sur 60 mois).
+          </p>
+          <p className="text-xs text-blue-700">
+            Idempotent : ne fait rien si déjà migré.
+          </p>
+          <button
+            onClick={async () => {
+              if (!window.confirm('Lancer la migration de la transaction "camion" ?')) return;
+              setMigrating(true);
+              try {
+                const result = await migrateCamionMut({});
+                alert(`✓ ${result.message}${result.migrated > 0 ? `\nID(s) : ${result.ids.join(', ')}` : ''}`);
+              } catch (e) {
+                alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
+              } finally {
+                setMigrating(false);
+              }
+            }}
+            disabled={migrating}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50"
+          >
+            <Wrench className="w-4 h-4" />
+            {migrating ? 'Migration en cours...' : 'Migrer la transaction camion'}
+          </button>
         </section>
 
         {/* === BOUTON ENREGISTRER (flottant) === */}
