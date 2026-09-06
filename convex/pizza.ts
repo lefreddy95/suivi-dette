@@ -262,6 +262,7 @@ export const updateConfig = mutation({
     vendeurNom: v.optional(v.string()),
     vendeurEmail: v.optional(v.string()),
     nomCamion: v.optional(v.string()),
+    dateDebut: v.optional(v.number()),
     acheteurPhotoUrl: v.optional(v.string()),
     vendeurPhotoUrl: v.optional(v.string()),
     vendeurPhone: v.optional(v.string()),
@@ -291,6 +292,7 @@ export const updateConfig = mutation({
       patch.vendeurEmail = args.vendeurEmail;
     }
     if (args.nomCamion !== undefined) patch.nomCamion = args.nomCamion;
+    if (args.dateDebut !== undefined) patch.dateDebut = args.dateDebut;
     if (args.acheteurPhotoUrl !== undefined) patch.acheteurPhotoUrl = args.acheteurPhotoUrl;
     if (args.vendeurPhotoUrl !== undefined) patch.vendeurPhotoUrl = args.vendeurPhotoUrl;
     if (args.vendeurPhone !== undefined) patch.vendeurPhone = args.vendeurPhone;
@@ -862,6 +864,119 @@ export const logSmsSent = mutation({
       userRole: "acheteur",
       paymentId: args.paymentId,
       details: JSON.stringify({ to: args.to }),
+      ipAddress: getClientIp(ctx),
+      userAgent: getUserAgent(ctx),
+      timestamp: now,
+    });
+    return { success: true };
+  },
+});
+
+// === SIGNATURE DU CONTRAT (acheteur OU vendeur) ===
+// Permet à l'acheteur ou au vendeur d'apposer sa signature sur le contrat.
+// Les 2 parties peuvent signer indépendamment (pas besoin que l'autre
+// ait déjà signé). Une fois que les 2 ont signé, le contrat est réputé
+// conclu (géré côté UI).
+export const signContract = mutation({
+  args: {
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Whitelist les 2 rôles (acheteur OU vendeur, pas "any")
+    const role = checkEmail(args.userEmail, "any") === args.userEmail
+      ? (args.userEmail === ACHETEUR_EMAIL ? "acheteur" : "vendeur")
+      : "any";
+    if (role === "any") {
+      throw new ConvexError("Email non whitelisté");
+    }
+    const config = await ctx.db.query("pizzaConfig").first();
+    if (!config) throw new ConvexError("Config non initialisée");
+    const now = Date.now();
+    const patch: Record<string, any> = { updatedAt: now };
+    if (role === "acheteur") {
+      patch.contractSignedByAcheteurAt = now;
+    } else {
+      patch.contractSignedByVendeurAt = now;
+    }
+    await ctx.db.patch(config._id, patch);
+    await ctx.db.insert("pizzaAuditLog", {
+      action: "contract_signed",
+      userEmail: args.userEmail,
+      userRole: role,
+      details: JSON.stringify({ signedAt: now, role }),
+      ipAddress: getClientIp(ctx),
+      userAgent: getUserAgent(ctx),
+      timestamp: now,
+    });
+    return { success: true, signedAt: now, role };
+  },
+});
+
+// Annuler sa propre signature du contrat (par exemple en cas d'erreur).
+// Un contrat signé par les 2 parties ne peut pas être annulé unilatéralement.
+// L'admin peut reset les 2 signatures via une mutation dédiée.
+export const unsignContract = mutation({
+  args: {
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const role = args.userEmail === ACHETEUR_EMAIL
+      ? "acheteur"
+      : args.userEmail === VENDEUR_EMAIL
+        ? "vendeur"
+        : "any";
+    if (role === "any") {
+      throw new ConvexError("Email non whitelisté");
+    }
+    const config = await ctx.db.query("pizzaConfig").first();
+    if (!config) throw new ConvexError("Config non initialisée");
+    // Bloque si les 2 parties ont déjà signé (contrat conclu)
+    if (config.contractSignedByAcheteurAt && config.contractSignedByVendeurAt) {
+      throw new ConvexError(
+        "Le contrat a deja ete signe par les 2 parties. " +
+        "Impossible d'annuler une signature unilatéralement. " +
+        "Contactez l'admin pour reset."
+      );
+    }
+    const now = Date.now();
+    const patch: Record<string, any> = { updatedAt: now };
+    if (role === "acheteur") {
+      patch.contractSignedByAcheteurAt = undefined;
+    } else {
+      patch.contractSignedByVendeurAt = undefined;
+    }
+    await ctx.db.patch(config._id, patch);
+    await ctx.db.insert("pizzaAuditLog", {
+      action: "contract_unsigned",
+      userEmail: args.userEmail,
+      userRole: role,
+      details: JSON.stringify({ role }),
+      ipAddress: getClientIp(ctx),
+      userAgent: getUserAgent(ctx),
+      timestamp: now,
+    });
+    return { success: true, role };
+  },
+});
+
+// Admin : reset les 2 signatures (cas extrême, contrat révoqué d'un commun accord)
+export const resetContract = mutation({
+  args: { userEmail: v.string() },
+  handler: async (ctx, args) => {
+    checkEmail(args.userEmail, "acheteur");
+    const config = await ctx.db.query("pizzaConfig").first();
+    if (!config) throw new ConvexError("Config non initialisée");
+    const now = Date.now();
+    await ctx.db.patch(config._id, {
+      contractSignedByAcheteurAt: undefined,
+      contractSignedByVendeurAt: undefined,
+      updatedAt: now,
+    });
+    await ctx.db.insert("pizzaAuditLog", {
+      action: "contract_reset",
+      userEmail: args.userEmail,
+      userRole: "acheteur",
+      details: "{}",
       ipAddress: getClientIp(ctx),
       userAgent: getUserAgent(ctx),
       timestamp: now,

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import './pizza-animations.css';
 import PizzaTruckAnimation from './PizzaTruckAnimation';
+import ContractPage from './ContractPage';
 import {
   Pizza, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
@@ -62,6 +63,8 @@ const PizzaTruckPage: React.FC = () => {
   // ⚠️ Les mutations Convex utilisent TOUJOURS isAcheteur (le vrai rôle
   // de l'user connecté). Le preview est purement visuel.
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
+  // Onglet principal : 'calendrier' (vue par défaut) ou 'contrat'
+  const [currentView, setCurrentView] = useState<'calendrier' | 'contrat'>('calendrier');
   // Rôle effectif affiché
   const displayAsVendeur = isVendeur || (isAcheteur && previewAs === 'vendeur');
   // Actions admin affichées seulement si acheteur ET pas en preview vendeur
@@ -690,6 +693,38 @@ const PizzaTruckPage: React.FC = () => {
           );
         })()}
 
+        {/* ===== ONGLET PRINCIPAL : CALENDRIER ou CONTRAT ===== */}
+        <div className="flex gap-2 border-b-2 border-gray-200 mb-4">
+          <button
+            onClick={() => setCurrentView('calendrier')}
+            className={`px-4 py-2 font-bold text-sm border-b-4 -mb-0.5 transition-colors ${
+              currentView === 'calendrier'
+                ? 'border-orange-500 text-orange-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Calendar className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+            Calendrier
+          </button>
+          <button
+            onClick={() => setCurrentView('contrat')}
+            className={`px-4 py-2 font-bold text-sm border-b-4 -mb-0.5 transition-colors flex items-center gap-2 ${
+              currentView === 'contrat'
+                ? 'border-amber-700 text-amber-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <FileSignature className="w-4 h-4 -mt-0.5" />
+            Contrat
+            {cfg?.contractSignedByAcheteurAt && cfg?.contractSignedByVendeurAt && (
+              <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full font-semibold">
+                ✓
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className={currentView === 'calendrier' ? '' : 'hidden'}>
         {/* ===== SECTION 3b : CALENDRIER DE PAIEMENTS (mensuels) ===== */}
         <section>
           <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
@@ -798,6 +833,15 @@ const PizzaTruckPage: React.FC = () => {
             </div>
           </section>
         )}
+      </div>
+
+      {currentView === 'contrat' && (
+        <ContractPage
+          userEmail={userEmail!}
+          isAcheteur={isAcheteur}
+          isVendeur={isVendeur}
+        />
+      )}
       </main>
 
       {/* ===== MODAL : MODIFIER LA CONFIG (admin) ===== */}

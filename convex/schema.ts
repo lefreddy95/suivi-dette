@@ -27,6 +27,11 @@ export default defineSchema({
     vendeurPhone: v.optional(v.string()),      // ex: "+33612345678" (pour WhatsApp auto)
     nomCamion: v.string(),                     // ex: "Le Petit Four"
     dateDebut: v.number(),                     // epoch ms — début du contrat
+    // Signatures du CONTRAT (acheteur + vendeur) — un seul clic, indépendant
+    // des signatures de chaque paiement. Une fois signé par les 2 parties,
+    // le contrat est réputé conclu.
+    contractSignedByAcheteurAt: v.optional(v.number()),   // epoch ms
+    contractSignedByVendeurAt: v.optional(v.number()),    // epoch ms
     createdAt: v.number(),
     updatedAt: v.number(),
   }),
