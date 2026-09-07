@@ -1,6 +1,6 @@
 import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
-import PizzaTruckPage from './components/pizza/PizzaTruckPage';
+import KuidiApp from './components/loans/KuidiApp';
 import LandingPage from './components/LandingPage';
 import PublicTransactionPage from './components/loans/PublicTransactionPage';
 import RepaymentSignPage from './components/loans/RepaymentSignPage';
@@ -47,7 +47,7 @@ function App() {
     return <RepaymentSignPage signToken={repaymentMatch[1]} />;
   }
 
-  return isSignedIn ? <PizzaTruckPage /> : <LandingPage />;
+  return isSignedIn ? <KuidiApp /> : <LandingPage />;
 }
 
 export default App;
