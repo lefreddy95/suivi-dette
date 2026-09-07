@@ -4,7 +4,6 @@ import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import './pizza-animations.css';
 import PizzaTruckAnimation from './PizzaTruckAnimation';
-import ContractPage from './ContractPage';
 import SettingsPage from './SettingsPage';
 import DashboardPage from '../loans/DashboardPage';
 import PeoplePage from '../loans/PeoplePage';
@@ -71,14 +70,13 @@ const PizzaTruckPage: React.FC = () => {
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
   // Onglet principal : 'kuidi' (Dashboard), 'kuidi-people', 'kuidi-person-detail',
   // 'kuidi-transactions' (liste globale), 'kuidi-transaction' (page dediee),
-  // 'camion' (legacy), 'contrat', 'parametres'
-  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'kuidi-transaction' | 'camion' | 'contrat' | 'parametres'>(() => {
+  // 'camion' (legacy), 'parametres' (l'ancien contrat a ete supprime)
+  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'kuidi-transaction' | 'camion' | 'parametres'>(() => {
     // Lit l'URL au mount (permet de bookmarker / partager des liens)
     const p = window.location.pathname;
     if (p === '/transactions') return 'kuidi-transactions';
     if (p === '/people' || p === '/personnes') return 'kuidi-people';
     if (p === '/camion' || p === '/pizza-truck') return 'camion';
-    if (p === '/contrat') return 'contrat';
     if (p === '/parametres' || p === '/settings') return 'parametres';
     const personMatch = p.match(/^\/person\/([A-Za-z0-9_-]+)\/?$/);
     if (personMatch) return 'kuidi-person-detail';
@@ -136,7 +134,6 @@ const PizzaTruckPage: React.FC = () => {
     } else if (currentView === 'kuidi-transaction' && selectedTransactionId) {
       url = `/tx/${selectedTransactionId}`;
     } else if (currentView === 'camion') url = '/camion';
-    else if (currentView === 'contrat') url = '/contrat';
     else if (currentView === 'parametres') url = '/parametres';
     if (window.location.pathname !== url) {
       window.history.replaceState(null, '', url);
@@ -165,7 +162,6 @@ const PizzaTruckPage: React.FC = () => {
   const recalculateScheduleMut = useMutation(api.pizza.recalculateSchedule);
   const createAdHocPaymentMut = useMutation(api.pizza.createAdHocPayment);
   const migratePaymentLabelsMut = useMutation(api.pizza.migratePaymentLabels);
-  const resetContractMut = useMutation(api.pizza.resetContract);
   const sendSmsToVendorAct = useAction(api.pizza.sendSmsToVendor);
 
   // ===== CHARGEMENT =====
@@ -290,7 +286,26 @@ const PizzaTruckPage: React.FC = () => {
     return <CenterLoader label="Chargement des paiements..." />;
   }
   if (summary === null) {
-    return <InitConfigForm onInit={initConfigMut} userEmail={userEmail!} isAcheteur={isAcheteur} />;
+    // Pas de config camion-pizza initialisee : on affiche un placeholder
+    // au lieu de forcer l'initialisation (l'app Kuidi fonctionne independamment)
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="text-5xl mb-3">🚚</div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Suivi Camion (legacy)</h1>
+          <p className="text-gray-600 text-sm">
+            Pas de configuration camion-pizza. Va dans <strong>Kuidi</strong> pour creer
+            tes premieres transactions de prets.
+          </p>
+          <button
+            onClick={() => setCurrentView('kuidi')}
+            className="mt-4 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg font-semibold"
+          >
+            Aller a Kuidi
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // ===== DONNÉES DÉRIVÉES =====
@@ -345,22 +360,6 @@ const PizzaTruckPage: React.FC = () => {
     try {
       const res = await deletePaymentMut({ userEmail, paymentId });
       alert(`Échéance n°${res.deletedNumero} supprimée. ${res.renumbered} paiement(s) renuméroté(s).`);
-    } catch (e) {
-      alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
-    }
-  };
-
-  const handleResetContract = async () => {
-    if (!userEmail) return;
-    if (!window.confirm(
-      'RESET des 2 signatures du contrat ?\n\n' +
-      '⚠️ Action admin : les 2 signatures seront supprimees. ' +
-      'A utiliser SEULEMENT en cas d\'accord des 2 parties pour revoquer le contrat. ' +
-      'Les signatures individuelles des paiements NE SONT PAS affectees.'
-    )) return;
-    try {
-      await resetContractMut({ userEmail });
-      alert('Signatures du contrat reinitialisees.');
     } catch (e) {
       alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
     }
@@ -607,7 +606,6 @@ const PizzaTruckPage: React.FC = () => {
         onClose={() => setCurrentView('calendrier')}
         onSaved={() => { /* les queries Convex se rafraichissent automatiquement */ }}
         onRecalculate={handleRecalculate}
-        onResetContract={isAcheteur ? handleResetContract : undefined}
       />
     );
   }
@@ -900,22 +898,6 @@ const PizzaTruckPage: React.FC = () => {
             <Calendar className="w-4 h-4 inline mr-1.5 -mt-0.5" />
             Calendrier
           </button>
-          <button
-            onClick={() => setCurrentView('contrat')}
-            className={`px-4 py-2 font-bold text-sm border-b-4 -mb-0.5 transition-colors flex items-center gap-2 ${
-              currentView === 'contrat'
-                ? 'border-amber-700 text-amber-900'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <FileSignature className="w-4 h-4 -mt-0.5" />
-            Contrat
-            {cfg?.contractSignedByAcheteurAt && cfg?.contractSignedByVendeurAt && (
-              <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full font-semibold">
-                ✓
-              </span>
-            )}
-          </button>
           {showAdminActions && (
             <button
               onClick={() => setCurrentView('parametres')}
@@ -1042,13 +1024,6 @@ const PizzaTruckPage: React.FC = () => {
         )}
       </div>
 
-      {currentView === 'contrat' && (
-        <ContractPage
-          userEmail={userEmail!}
-          isAcheteur={isAcheteur}
-          isVendeur={isVendeur}
-        />
-      )}
       </main>
 
       {/* ===== MODAL : SIGNATURE (vendeur) ===== */}

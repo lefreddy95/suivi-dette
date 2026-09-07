@@ -17,7 +17,6 @@ interface SettingsPageProps {
   onSaved: () => void;
   // Actions admin supplementaires (botons dangers)
   onRecalculate: () => void;
-  onResetContract?: () => void;
 }
 
 /**
@@ -34,7 +33,7 @@ interface SettingsPageProps {
  */
 const SettingsPage: React.FC<SettingsPageProps> = ({
   config, userEmail, isAcheteur, onClose, onSaved,
-  onRecalculate, onResetContract,
+  onRecalculate,
 }) => {
   const updateConfigMut = useMutation(api.pizza.updateConfig);
   const migrateCamionMut = useMutation(api.loans.migrateCamionToKuidi);
@@ -150,7 +149,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Acces refuse</h1>
           <p className="text-gray-600 mb-6">
-            Seul l'acheteur (Freddy) peut modifier les parametres du contrat.
+            Seul l'administrateur (Freddy) peut modifier les parametres de l'app.
           </p>
           <button
             onClick={onClose}
@@ -172,7 +171,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="flex items-center gap-3">
             <Settings className="w-6 h-6 text-orange-600" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Parametres du contrat</h1>
+              <h1 className="text-xl font-bold text-gray-900">Parametres</h1>
               <p className="text-xs text-gray-500">Configuration globale de l'app</p>
             </div>
           </div>
@@ -387,15 +386,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               <RefreshCw className="w-4 h-4" />
               Recalculer le calendrier
             </button>
-            {onResetContract && (
-              <button
-                onClick={onResetContract}
-                className="px-4 py-3 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-semibold flex items-center justify-center gap-2"
-              >
-                <FileSignature className="w-4 h-4" />
-                Reset signatures contrat
-              </button>
-            )}
           </div>
         </section>
 
