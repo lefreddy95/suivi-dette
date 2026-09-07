@@ -13,9 +13,10 @@
 //   → Demain : N users (SaaS)
 // =========================================================================
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
+import { api, internal } from "./_generated/api";
 
 // === WHITELIST TEMPORAIRE (à migrer vers Clerk JWT) ===
 // Pour l'instant, Freddy ET Francky peuvent utiliser l'app.
@@ -380,6 +381,30 @@ export const updateTransaction = mutation({
     if (args.installmentStartDate !== undefined) patch.installmentStartDate = args.installmentStartDate ?? undefined;
     if (args.installmentCount !== undefined) patch.installmentCount = args.installmentCount ?? undefined;
     await ctx.db.patch(args.transactionId, patch);
+    // Si le statut vient de passer à "termine", logger un event
+    if (args.status === "termine") {
+      const event = {
+        type: t.type.startsWith("item_") ? "item_returned"
+          : t.type.startsWith("service_") ? "service_done"
+          : "repayment_added",
+        date: Date.now(),
+        actor: args.userEmail,
+        details: `Transaction marquee comme terminee`,
+      };
+      await ctx.db.patch(args.transactionId, {
+        events: [...(t.events ?? []), event],
+      });
+    } else if (args.status === "annule") {
+      const event = {
+        type: "annule",
+        date: Date.now(),
+        actor: args.userEmail,
+        details: "Transaction annulee",
+      };
+      await ctx.db.patch(args.transactionId, {
+        events: [...(t.events ?? []), event],
+      });
+    }
     return { success: true };
   },
 });
@@ -434,6 +459,16 @@ export const addRepayment = mutation({
       patch.status = "termine";
     }
     await ctx.db.patch(args.transactionId, patch);
+    // Log dans la timeline
+    const event = {
+      type: "repayment_added",
+      date: Date.now(),
+      actor: args.userEmail,
+      details: `Remboursement de ${args.amount} €${args.note ? ` (${args.note})` : ""}${newTotal >= t.amount ? " → Transaction terminée" : ""}`,
+    };
+    await ctx.db.patch(args.transactionId, {
+      events: [...(t.events ?? []), event],
+    });
     return { success: true, newTotal, isComplete: newTotal >= t.amount };
   },
 });
@@ -651,6 +686,18 @@ export const signPublicTransaction = mutation({
     };
     if (args.contractText) patch.contractText = args.contractText;
     await ctx.db.patch(tx._id, patch);
+    // Log dans la timeline
+    const event = {
+      type: "contract_signed",
+      date: Date.now(),
+      actor: args.signerEmail,
+      signerName: args.signerName,
+      signerRole: args.signerRole,
+      details: `Signature ${args.signerRole === "owner" ? "owner" : "contrepartie"}`,
+    };
+    await ctx.db.patch(tx._id, {
+      events: [...(tx.events ?? []), event],
+    });
     return { success: true, signedAt: newSignature.signedAt };
   },
 });
@@ -769,6 +816,149 @@ export const confirmRepaymentPublic = mutation({
       repayments: newRepayments,
       updatedAt: Date.now(),
     });
+    // Log dans la timeline
+    const event = {
+      type: "repayment_signed",
+      date: Date.now(),
+      actor: args.signerEmail,
+      signerName: args.signerName,
+      details: `Confirmation du remboursement n°${args.repaymentIndex + 1} (${tx.repayments[args.repaymentIndex].amount} €)`,
+    };
+    await ctx.db.patch(tx._id, {
+      events: [...(tx.events ?? []), event],
+    });
     return { success: true };
+  },
+});
+
+// === MUTATION : logger un événement dans la timeline =======================
+// Appelé par les actions/mutations pour tracer les événements importants
+// (signature, remboursement, envoi d'invitation, etc.).
+export const logEvent = mutation({
+  args: {
+    transactionId: v.id("transactions"),
+    type: v.string(),
+    actor: v.string(),
+    details: v.optional(v.string()),
+    signerName: v.optional(v.string()),
+    signerRole: v.optional(v.union(v.literal("owner"), v.literal("counterparty"))),
+  },
+  handler: async (ctx, args) => {
+    const tx = await ctx.db.get(args.transactionId);
+    if (!tx) throw new ConvexError("Transaction introuvable");
+    const event = {
+      type: args.type,
+      date: Date.now(),
+      actor: args.actor,
+      details: args.details,
+      signerName: args.signerName,
+      signerRole: args.signerRole,
+    };
+    await ctx.db.patch(args.transactionId, {
+      events: [...(tx.events ?? []), event],
+      updatedAt: Date.now(),
+    });
+    return { success: true };
+  },
+});
+
+// === MUTATION : mettre à jour le téléphone de la contrepartie ============
+// Pratique quand l'user veut ajouter/modifier le numéro après création.
+export const setCounterpartyPhone = mutation({
+  args: {
+    userEmail: v.string(),
+    transactionId: v.id("transactions"),
+    phone: v.string(),  // vide = supprime
+  },
+  handler: async (ctx, args) => {
+    checkUser(args.userEmail);
+    const tx = await ctx.db.get(args.transactionId);
+    if (!tx || tx.ownerEmail !== args.userEmail) {
+      throw new ConvexError("Transaction introuvable ou acces refuse");
+    }
+    await ctx.db.patch(args.transactionId, {
+      counterpartyPhone: args.phone.trim() || undefined,
+      updatedAt: Date.now(),
+    });
+    return { success: true };
+  },
+});
+
+// === ACTION : envoyer une invitation à signer par SMS =====================
+// Génère un message formaté avec les infos de la transaction + lien public,
+// appelle le worker Pushbullet (même système que Pizza Truck), et log
+// l'événement dans la timeline.
+export const sendInvite = action({
+  args: {
+    userEmail: v.string(),
+    transactionId: v.id("transactions"),
+    customMessage: v.optional(v.string()),  // override du message par défaut
+    // Si renseigne, on prend ce numéro au lieu de counterpartyPhone
+    overridePhone: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    checkUser(args.userEmail);
+    const tx = await ctx.runQuery(api.loans.getTransaction, {
+      userEmail: args.userEmail,
+      transactionId: args.transactionId,
+    });
+    const phone = args.overridePhone || tx.counterpartyPhone;
+    if (!phone) {
+      throw new ConvexError("Aucun numéro de téléphone pour la contrepartie. Ajoute counterpartyPhone.");
+    }
+    const workerUrl = process.env.PUSHBULLET_WORKER_URL;
+    if (!workerUrl) {
+      throw new ConvexError("PUSHBULLET_WORKER_URL non configuré. Contacte l'admin.");
+    }
+    const siteUrl = process.env.CONVEX_SITE_URL || "https://suivi-dette.netlify.app";
+    const publicUrl = `${siteUrl}/transaction/${tx.publicToken}`;
+    // Construit le message par défaut (customisable)
+    const typeLabel = tx.type === "money_lent" ? "Prêt d'argent"
+      : tx.type === "money_borrowed" ? "Emprunt d'argent"
+      : tx.type === "item_lent" ? "Prêt d'objet"
+      : tx.type === "item_borrowed" ? "Emprunt d'objet"
+      : tx.type === "service_done" ? "Service rendu"
+      : "Service reçu";
+    const formatAmount = (n: number) => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let message: string;
+    if (args.customMessage) {
+      message = args.customMessage;
+    } else if (tx.installmentAmount) {
+      // Échéancier
+      const freqLabel = tx.installmentFrequency === "weekly" ? "par semaine"
+        : tx.installmentFrequency === "biweekly" ? "toutes les 2 semaines"
+        : tx.installmentFrequency === "monthly" ? "par mois"
+        : "par trimestre";
+      message = `💰 *${typeLabel}* — ${tx.title}\n\n` +
+        `Montant total : *${formatAmount(tx.amount ?? 0)} €*\n` +
+        `Échéancier : *${formatAmount(tx.installmentAmount)} €* ${freqLabel}\n` +
+        `${tx.installmentCount ? `Nombre d'échéances : ${tx.installmentCount}\n` : ""}` +
+        `\n👉 Connecte-toi ici pour signer le contrat :\n${publicUrl}`;
+    } else if (tx.amount) {
+      message = `💰 *${typeLabel}* — ${tx.title}\n\n` +
+        `Montant : *${formatAmount(tx.amount)} €*\n` +
+        `\n👉 Connecte-toi ici pour signer :\n${publicUrl}`;
+    } else {
+      message = `📋 *${typeLabel}* — ${tx.title}\n\n` +
+        `👉 Connecte-toi ici pour signer :\n${publicUrl}`;
+    }
+    // Appel HTTP au worker Pushbullet
+    const response = await fetch(`${workerUrl}/send-sms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: phone, body: message }),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new ConvexError(`Erreur worker (${response.status}): ${errText}`);
+    }
+    // Log dans la timeline
+    await ctx.runMutation(api.loans.logEvent, {
+      transactionId: args.transactionId,
+      type: "contract_sign_requested",
+      actor: args.userEmail,
+      details: `SMS envoyé au ${phone} : ${message.slice(0, 80)}...`,
+    });
+    return { success: true, to: phone, message };
   },
 });

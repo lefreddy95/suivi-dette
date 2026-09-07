@@ -164,8 +164,28 @@ export default defineSchema({
     // === Contrepartie (l'autre personne impliquée) ===
     counterpartyEmail: v.optional(v.string()),  // email de l'autre personne
     counterpartyName: v.optional(v.string()),   // nom affiché sur la page publique
+    counterpartyPhone: v.optional(v.string()),  // téléphone (pour SMS / WhatsApp)
     // === Token public (URL partageable /transaction/:token) ===
     publicToken: v.optional(v.string()),
+    // === Timeline d'événements (preuve d'engagement, audit log light) ===
+    // Chaque événement : {type, date, actor, details}
+    // - contract_sign_requested  : lien envoyé à la contrepartie
+    // - contract_signed          : une partie a signé le contrat
+    // - repayment_added          : un remboursement a été ajouté
+    // - repayment_signed         : la contrepartie a confirmé un remboursement
+    // - item_returned            : un objet a été marqué rendu
+    // - service_done             : un service a été marqué effectué
+    events: v.optional(v.array(v.object({
+      type: v.string(),                        // type d'événement (cf. liste ci-dessus)
+      date: v.number(),                        // epoch ms
+      actor: v.string(),                      // email ou "system"
+      details: v.optional(v.string()),        // JSON ou texte libre
+      // Pour les événements de signature : qui a fait quoi
+      signerName: v.optional(v.string()),
+      signerRole: v.optional(v.union(
+        v.literal("owner"), v.literal("counterparty")
+      )),
+    }))),
     // === Signatures au niveau du contrat (par les 2 parties) ===
     // Optionnel pour la compatibilite avec les transactions creees avant
     // l'ajout du systeme de signatures. Le code utilise `?? []` partout.

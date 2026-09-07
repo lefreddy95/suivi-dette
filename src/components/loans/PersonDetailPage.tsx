@@ -5,8 +5,10 @@ import {
   ArrowLeft, Mail, Phone, StickyNote, Plus, Check, X,
   Banknote, HandCoins, Package, PackageOpen, Wrench, WrenchIcon,
   Calendar, AlertCircle, Trash2, TrendingUp, TrendingDown,
-  CircleDollarSign, ChevronRight, Repeat, FileSignature, Copy,
+  CircleDollarSign, ChevronRight, Repeat, FileSignature, Copy, Send,
+  History,
 } from 'lucide-react';
+import SignInviteModal from './SignInviteModal';
 
 interface PersonDetailPageProps {
   userEmail: string;
@@ -31,6 +33,7 @@ const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId
   const data = useQuery(api.loans.getPerson, { userEmail, personId });
   const [repayingTx, setRepayingTx] = useState<any | null>(null);
   const [closingTx, setClosingTx] = useState<any | null>(null);
+  const [invitingTx, setInvitingTx] = useState<any | null>(null);
 
   if (data === undefined) {
     return <div className="text-center py-12 text-gray-500">Chargement...</div>;
@@ -281,6 +284,9 @@ const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId
         )}
       </div>
 
+      {/* === TIMELINE D'ÉVÉNEMENTS (preuve paiement / signature) === */}
+      <EventsTimeline transactions={transactions} />
+
       {/* === MODALES === */}
       {repayingTx && (
         <RepaymentModal
@@ -294,6 +300,18 @@ const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId
           userEmail={userEmail}
           tx={closingTx}
           onClose={() => setClosingTx(null)}
+        />
+      )}
+      {invitingTx && (
+        <SignInviteModal
+          userEmail={userEmail}
+          transactionId={invitingTx._id}
+          counterpartyName={invitingTx.counterpartyName}
+          counterpartyPhone={invitingTx.counterpartyPhone}
+          transactionType={invitingTx.type}
+          transactionTitle={invitingTx.title}
+          transactionAmount={invitingTx.amount}
+          onClose={() => setInvitingTx(null)}
         />
       )}
     </div>
@@ -502,6 +520,17 @@ const TransactionCard: React.FC<{
             >
               <Copy className="w-3 h-3" />
               Lien
+            </button>
+          )}
+          {/* Bouton inviter à signer (SMS / WhatsApp) */}
+          {tx.publicToken && tx.counterpartyEmail && (
+            <button
+              onClick={() => setInvitingTx(tx)}
+              className="px-2.5 py-1 text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md flex items-center gap-1"
+              title="Envoyer une invitation à signer par SMS ou WhatsApp"
+            >
+              <Send className="w-3 h-3" />
+              Inviter
             </button>
           )}
           {onRepay && remaining > 0 && (
@@ -763,6 +792,110 @@ const CloseTxModal: React.FC<{
 };
 
 export default PersonDetailPage;
+
+// === TIMELINE D'ÉVÉNEMENTS (preuve d'engagement, audit log) ===
+// Consolide tous les events de toutes les transactions de la personne.
+// Utile comme PREUVE en cas de litige (qui a signé quoi quand, qui a
+// remboursé quand, etc.).
+const EventsTimeline: React.FC<{ transactions: any[] }> = ({ transactions }) => {
+  // Collecte et trie les events
+  const allEvents: Array<{
+    event: any;
+    txTitle: string;
+    txId: string;
+  }> = [];
+  for (const tx of transactions) {
+    if (!tx.events) continue;
+    for (const ev of tx.events) {
+      allEvents.push({ event: ev, txTitle: tx.title, txId: tx._id });
+    }
+  }
+  if (allEvents.length === 0) return null;
+  // Tri décroissant (plus récent en haut)
+  allEvents.sort((a, b) => b.event.date - a.event.date);
+
+  const getEventIcon = (type: string) => {
+    switch (type) {
+      case 'contract_sign_requested': return <Send className="w-3.5 h-3.5" />;
+      case 'contract_signed': return <FileSignature className="w-3.5 h-3.5" />;
+      case 'repayment_added': return <CircleDollarSign className="w-3.5 h-3.5" />;
+      case 'repayment_signed': return <Check className="w-3.5 h-3.5" />;
+      case 'item_returned': return <Package className="w-3.5 h-3.5" />;
+      case 'service_done': return <Wrench className="w-3.5 h-3.5" />;
+      default: return <CircleDollarSign className="w-3.5 h-3.5" />;
+    }
+  };
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'contract_sign_requested': return 'bg-orange-100 text-orange-700';
+      case 'contract_signed': return 'bg-green-100 text-green-700';
+      case 'repayment_added': return 'bg-blue-100 text-blue-700';
+      case 'repayment_signed': return 'bg-emerald-100 text-emerald-700';
+      case 'item_returned': return 'bg-amber-100 text-amber-700';
+      case 'service_done': return 'bg-cyan-100 text-cyan-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+  const getEventLabel = (type: string): string => {
+    switch (type) {
+      case 'contract_sign_requested': return 'Invitation envoyée';
+      case 'contract_signed': return 'Contrat signé';
+      case 'repayment_added': return 'Remboursement ajouté';
+      case 'repayment_signed': return 'Remboursement confirmé';
+      case 'item_returned': return 'Objet récupéré';
+      case 'service_done': return 'Service effectué';
+      default: return type;
+    }
+  };
+
+  const formatDateTime = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+      + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <History className="w-3.5 h-3.5" />
+        Historique ({allEvents.length})
+      </h2>
+      <ol className="space-y-2 relative">
+        {/* Ligne verticale pointillée */}
+        <div className="absolute left-[14px] top-2 bottom-2 w-px bg-gray-200" aria-hidden="true" />
+        {allEvents.slice(0, 30).map(({ event, txTitle, txId }, i) => (
+          <li key={i} className="flex items-start gap-2 relative">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${getEventColor(event.type)}`}>
+              {getEventIcon(event.type)}
+            </div>
+            <div className="flex-1 min-w-0 pt-0.5">
+              <p className="text-xs font-semibold text-gray-900">
+                {getEventLabel(event.type)}
+                {event.signerName && (
+                  <span className="text-gray-500 font-normal"> · par {event.signerName}</span>
+                )}
+              </p>
+              <p className="text-[10px] text-gray-500 truncate">
+                <span className="font-medium">{txTitle}</span>
+                {' · '}{formatDateTime(event.date)}
+              </p>
+              {event.details && (
+                <p className="text-[10px] text-gray-400 italic mt-0.5 truncate">
+                  {event.details}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {allEvents.length > 30 && (
+        <p className="text-[10px] text-gray-400 text-center mt-2 italic">
+          +{allEvents.length - 30} événement(s) plus ancien(s)
+        </p>
+      )}
+    </div>
+  );
+};
 
 // === BADGE ÉCHÉANCIER (sous la barre de progression) ===
 const ScheduleBadge: React.FC<{ tx: any }> = ({ tx }) => {
