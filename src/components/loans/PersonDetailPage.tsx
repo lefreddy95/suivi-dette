@@ -53,6 +53,43 @@ const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId
     );
   }
 
+  // Mode page plein ecran : on affiche la modale directement (sans fiche derriere)
+  if (repayingTx || closingTx || invitingTx) {
+    return (
+      <>
+        {repayingTx && (
+          <RepaymentModal
+            userEmail={userEmail}
+            tx={repayingTx}
+            onClose={() => setRepayingTx(null)}
+            fullScreen
+          />
+        )}
+        {closingTx && (
+          <CloseTxModal
+            userEmail={userEmail}
+            tx={closingTx}
+            onClose={() => setClosingTx(null)}
+            fullScreen
+          />
+        )}
+        {invitingTx && (
+          <SignInviteModal
+            userEmail={userEmail}
+            transactionId={invitingTx._id}
+            counterpartyName={invitingTx.counterpartyName}
+            counterpartyPhone={invitingTx.counterpartyPhone}
+            transactionType={invitingTx.type}
+            transactionTitle={invitingTx.title}
+            transactionAmount={invitingTx.amount}
+            onClose={() => setInvitingTx(null)}
+            fullScreen
+          />
+        )}
+      </>
+    );
+  }
+
   // === CALCULS STATS ===
   const activeTxs = transactions.filter((t: any) => t.status === 'en_cours');
   const finishedTxs = transactions.filter((t: any) => t.status === 'termine');
@@ -589,7 +626,9 @@ const RepaymentModal: React.FC<{
   userEmail: string;
   tx: any;
   onClose: () => void;
-}> = ({ userEmail, tx, onClose }) => {
+  fullScreen?: boolean;
+  onAfterSave?: (repaymentIndex: number) => void;  // Pour ouvrir modal SMS après
+}> = ({ userEmail, tx, onClose, fullScreen = false, onAfterSave }) => {
   const addRepaymentMut = useMutation(api.loans.addRepayment);
   const remaining = (tx.amount ?? 0) - tx.totalRepaid;
   const [amount, setAmount] = useState(remaining.toString());
@@ -633,13 +672,33 @@ const RepaymentModal: React.FC<{
     n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className={
+        fullScreen
+          ? 'min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 p-4'
+          : 'fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4'
+      }
+      onClick={fullScreen ? undefined : onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"
+        className={
+          fullScreen
+            ? 'bg-white rounded-2xl shadow-lg max-w-2xl mx-auto p-6 space-y-4'
+            : 'bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4'
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+          {fullScreen && (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour
+            </button>
+          )}
+          <h2 className="text-lg font-bold flex items-center gap-2 flex-1">
             <Plus className="w-5 h-5 text-green-600" />
             Ajouter un remboursement
           </h2>
@@ -725,7 +784,8 @@ const CloseTxModal: React.FC<{
   userEmail: string;
   tx: any;
   onClose: () => void;
-}> = ({ userEmail, tx, onClose }) => {
+  fullScreen?: boolean;
+}> = ({ userEmail, tx, onClose, fullScreen = false }) => {
   const updateMut = useMutation(api.loans.updateTransaction);
   const [saving, setSaving] = useState(false);
 
@@ -742,11 +802,31 @@ const CloseTxModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className={
+        fullScreen
+          ? 'min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 p-4'
+          : 'fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4'
+      }
+      onClick={fullScreen ? undefined : onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"
+        className={
+          fullScreen
+            ? 'bg-white rounded-2xl shadow-lg max-w-2xl mx-auto p-6 space-y-4'
+            : 'bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4'
+        }
         onClick={(e) => e.stopPropagation()}
       >
+        {fullScreen && (
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour
+          </button>
+        )}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Clôturer la transaction</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">

@@ -3,7 +3,7 @@ import { useAction, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
   X, MessageCircle, Send, Copy, Check, Smartphone,
-  Edit2, ExternalLink, AlertCircle, Loader2,
+  Edit2, ExternalLink, AlertCircle, Loader2, ArrowLeft,
 } from 'lucide-react';
 
 interface SignInviteModalProps {
@@ -21,6 +21,8 @@ interface SignInviteModalProps {
   // Callback quand l'envoi est fait
   onClose: () => void;
   onSent?: (method: 'whatsapp' | 'sms') => void;
+  // Mode page plein ecran (defaut: false = modale)
+  fullScreen?: boolean;
 }
 
 /**
@@ -40,7 +42,7 @@ interface SignInviteModalProps {
  */
 const SignInviteModal: React.FC<SignInviteModalProps> = ({
   userEmail, transactionId, counterpartyName, counterpartyPhone,
-  transactionType, transactionTitle, transactionAmount, onClose, onSent,
+  transactionType, transactionTitle, transactionAmount, onClose, onSent, fullScreen = false,
 }) => {
   const sendInviteAct = useAction(api.loans.sendInvite);
   const setPhoneMut = useMutation(api.loans.setCounterpartyPhone);
@@ -129,14 +131,34 @@ const SignInviteModal: React.FC<SignInviteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className={
+        fullScreen
+          ? 'min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 p-4'
+          : 'fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4'
+      }
+      onClick={fullScreen ? undefined : onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className={
+          fullScreen
+            ? 'bg-white rounded-2xl shadow-lg max-w-2xl mx-auto p-5 sm:p-6 space-y-4'
+            : 'bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto'
+        }
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
+            {fullScreen && (
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Retour
+              </button>
+            )}
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Send className="w-5 h-5 text-orange-600" />
               Inviter à signer
