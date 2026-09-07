@@ -158,8 +158,8 @@ const PersonCard: React.FC<{
   const balanceLabel = balance === 0
     ? 'A l\'equilibre'
     : balance > 0
-      ? 'On te doit'
-      : 'Tu dois';
+      ? 'Te doit'
+      : 'Tu lui dois';
   const balanceColor = balance === 0
     ? 'text-gray-500'
     : balance > 0

@@ -10,6 +10,7 @@ import DashboardPage from '../loans/DashboardPage';
 import PeoplePage from '../loans/PeoplePage';
 import PersonDetailPage from '../loans/PersonDetailPage';
 import TransactionsPage from '../loans/TransactionsPage';
+import TransactionDetailPage from '../loans/TransactionDetailPage';
 import {
   Wallet, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
@@ -69,8 +70,9 @@ const PizzaTruckPage: React.FC = () => {
   // de l'user connecté). Le preview est purement visuel.
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
   // Onglet principal : 'kuidi' (Dashboard), 'kuidi-people', 'kuidi-person-detail',
-  // 'kuidi-transactions' (liste globale), 'camion' (legacy), 'contrat', 'parametres'
-  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'camion' | 'contrat' | 'parametres'>(() => {
+  // 'kuidi-transactions' (liste globale), 'kuidi-transaction' (page dediee),
+  // 'camion' (legacy), 'contrat', 'parametres'
+  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'kuidi-transaction' | 'camion' | 'contrat' | 'parametres'>(() => {
     // Lit l'URL au mount (permet de bookmarker / partager des liens)
     const p = window.location.pathname;
     if (p === '/transactions') return 'kuidi-transactions';
@@ -80,12 +82,19 @@ const PizzaTruckPage: React.FC = () => {
     if (p === '/parametres' || p === '/settings') return 'parametres';
     const personMatch = p.match(/^\/person\/([A-Za-z0-9_-]+)\/?$/);
     if (personMatch) return 'kuidi-person-detail';
+    const txMatch = p.match(/^\/tx\/([A-Za-z0-9_-]+)\/?$/);
+    if (txMatch) return 'kuidi-transaction';
     return 'kuidi';
   });
   // ID de la personne selectionnee (pour le detail)
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(() => {
     const personMatch = window.location.pathname.match(/^\/person\/([A-Za-z0-9_-]+)\/?$/);
     return personMatch ? personMatch[1] : null;
+  });
+  // ID de la transaction selectionnee (pour la page dediee)
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(() => {
+    const txMatch = window.location.pathname.match(/^\/tx\/([A-Za-z0-9_-]+)\/?$/);
+    return txMatch ? txMatch[1] : null;
   });
   // Filtre personne pré-appliqué quand on arrive sur TransactionsPage depuis une personne
   const [transactionFilterPersonId, setTransactionFilterPersonId] = useState<string | null>(null);
@@ -124,13 +133,15 @@ const PizzaTruckPage: React.FC = () => {
     else if (currentView === 'kuidi-people') url = '/people';
     else if (currentView === 'kuidi-person-detail' && selectedPersonId) {
       url = `/person/${selectedPersonId}`;
+    } else if (currentView === 'kuidi-transaction' && selectedTransactionId) {
+      url = `/tx/${selectedTransactionId}`;
     } else if (currentView === 'camion') url = '/camion';
     else if (currentView === 'contrat') url = '/contrat';
     else if (currentView === 'parametres') url = '/parametres';
     if (window.location.pathname !== url) {
       window.history.replaceState(null, '', url);
     }
-  }, [currentView, selectedPersonId]);
+  }, [currentView, selectedPersonId, selectedTransactionId]);
 
   // Synchronise le numéro WhatsApp du vendeur avec la config DB dès qu'elle
   // arrive. Ce useEffect est placé ICI (avant les early returns) pour
@@ -482,7 +493,7 @@ const PizzaTruckPage: React.FC = () => {
 
   // Page Suivi-dette (Dashboard + People + Person detail + Transactions) : nouveau tracker de prêts, plein écran.
   // Pour l'instant intégré temporairement dans PizzaTruckPage (refonte future).
-  if (currentView === 'kuidi' || currentView === 'kuidi-people' || currentView === 'kuidi-person-detail' || currentView === 'kuidi-transactions') {
+  if (currentView === 'kuidi' || currentView === 'kuidi-people' || currentView === 'kuidi-person-detail' || currentView === 'kuidi-transactions' || currentView === 'kuidi-transaction') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
         <header className="bg-white border-b-2 border-orange-200 shadow-sm sticky top-0 z-10">
@@ -560,6 +571,15 @@ const PizzaTruckPage: React.FC = () => {
               userEmail={userEmail!}
               personId={selectedPersonId}
               onBack={() => setCurrentView('kuidi-people')}
+              onSelectTransaction={(id) => { setSelectedTransactionId(id); setCurrentView('kuidi-transaction'); }}
+            />
+          )}
+          {currentView === 'kuidi-transaction' && selectedTransactionId && (
+            <TransactionDetailPage
+              userEmail={userEmail!}
+              transactionId={selectedTransactionId}
+              onBack={() => setCurrentView('kuidi-transactions')}
+              onSelectPerson={(id) => { setSelectedPersonId(id); setCurrentView('kuidi-person-detail'); }}
             />
           )}
           {currentView === 'kuidi-transactions' && (
@@ -568,6 +588,7 @@ const PizzaTruckPage: React.FC = () => {
               initialPersonId={transactionFilterPersonId ?? undefined}
               autoCreate={autoCreateTransaction}
               onSelectPerson={(id) => { setSelectedPersonId(id); setCurrentView('kuidi-person-detail'); }}
+              onSelectTransaction={(id) => { setSelectedTransactionId(id); setCurrentView('kuidi-transaction'); }}
             />
           )}
         </main>

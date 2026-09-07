@@ -4,7 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import {
   Plus, Search, Filter, ListChecks, HandCoins, Banknote, Package, PackageOpen,
   Wrench, WrenchIcon, Calendar, AlertCircle, Trash2, Check, CircleDollarSign,
-  TrendingUp, TrendingDown, Copy, X, CheckCircle2,
+  TrendingUp, TrendingDown, Copy, X, CheckCircle2, ExternalLink,
 } from 'lucide-react';
 import TransactionFormModal, { TYPES, type TransactionType } from './TransactionFormModal';
 
@@ -16,6 +16,8 @@ interface TransactionsPageProps {
   autoCreate?: boolean;
   // Callback pour ouvrir une personne
   onSelectPerson?: (personId: string) => void;
+  // Callback pour ouvrir la page dediee d'une transaction
+  onSelectTransaction?: (transactionId: string) => void;
 }
 
 /**
@@ -30,7 +32,7 @@ interface TransactionsPageProps {
  * Bouton "+" en haut à droite pour ouvrir la modale de création.
  */
 const TransactionsPage: React.FC<TransactionsPageProps> = ({
-  userEmail, initialPersonId, autoCreate, onSelectPerson,
+  userEmail, initialPersonId, autoCreate, onSelectPerson, onSelectTransaction,
 }) => {
   // Auto-open modale au mount si demandé (ex: clic sur "+" du Dashboard)
   useEffect(() => {
@@ -202,6 +204,7 @@ const TransactionsPage: React.FC<TransactionsPageProps> = ({
               tx={t}
               person={peopleById[t.personId]}
               onPersonClick={onSelectPerson ? () => onSelectPerson(t.personId) : undefined}
+              onOpenPage={onSelectTransaction ? () => onSelectTransaction(t._id) : undefined}
               onDelete={() => handleDelete(t)}
             />
           ))}
@@ -266,8 +269,9 @@ const TransactionRow: React.FC<{
   tx: any;
   person: any;
   onPersonClick?: () => void;
+  onOpenPage?: () => void;
   onDelete: () => void;
-}> = ({ tx, person, onPersonClick, onDelete }) => {
+}> = ({ tx, person, onPersonClick, onOpenPage, onDelete }) => {
   const colors = getTypeColor(tx.type);
   const remaining = (tx.amount ?? 0) - tx.totalRepaid;
   const isMoney = tx.type === 'money_lent' || tx.type === 'money_borrowed';
@@ -356,6 +360,15 @@ const TransactionRow: React.FC<{
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
+      {onOpenPage && (
+        <button
+          onClick={onOpenPage}
+          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded flex-shrink-0"
+          title="Voir la page dediee"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      )}
     </li>
   );
 };

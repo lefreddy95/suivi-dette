@@ -14,6 +14,8 @@ interface PersonDetailPageProps {
   userEmail: string;
   personId: string;
   onBack: () => void;
+  // Navigation vers la page dediee transaction
+  onSelectTransaction?: (transactionId: string) => void;
 }
 
 /**
@@ -29,7 +31,7 @@ interface PersonDetailPageProps {
  * La création de nouvelle transaction est volontairement hors scope ici
  * (arrive au commit 1.4/4 — page Transactions dédiée avec modale globale).
  */
-const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId, onBack }) => {
+const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId, onBack, onSelectTransaction }) => {
   const data = useQuery(api.loans.getPerson, { userEmail, personId });
   const [repayingTx, setRepayingTx] = useState<any | null>(null);
   const [closingTx, setClosingTx] = useState<any | null>(null);
@@ -130,8 +132,8 @@ const PersonDetailPage: React.FC<PersonDetailPageProps> = ({ userEmail, personId
   const balanceLabel = netBalance === 0
     ? 'Compte à l\'équilibre'
     : netBalance > 0
-      ? 'On te doit'
-      : 'Tu dois';
+      ? 'Te doit'
+      : 'Tu lui dois';
   const balanceColor = netBalance === 0
     ? 'bg-gray-100 text-gray-700'
     : netBalance > 0
