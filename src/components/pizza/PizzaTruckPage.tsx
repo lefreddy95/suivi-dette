@@ -1058,11 +1058,13 @@ const PizzaTruckPage: React.FC = () => {
 // Sous-composants
 // =========================================================================
 
-const CenterLoader: React.FC<{ label: string }> = ({ label }) => (
-  <div className="min-h-screen bg-gradient-to-br from-orange-100 via-yellow-100 to-red-100 flex items-center justify-center">
+// Loader centre unifie (meme rendu que App.tsx) — plus de 🍕, juste 💰 + spinner
+const CenterLoader: React.FC<{ label?: string }> = ({ label = "Chargement..." }) => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
     <div className="text-center">
-      <div className="pizza-spinner text-5xl">🍕</div>
-      <p className="mt-4 text-base font-medium text-gray-800">{label}</p>
+      <div className="text-5xl mb-3">💰</div>
+      <div className="w-10 h-10 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto" />
+      <p className="mt-3 text-gray-500 text-sm">{label}</p>
     </div>
   </div>
 );
