@@ -3,7 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
   Plus, Search, ChevronRight, User as UserIcon, Edit2, Trash2, X,
-  Mail, Phone, StickyNote, Users as UsersIcon,
+  Mail, Phone, StickyNote, Users as UsersIcon, ArrowLeft,
 } from 'lucide-react';
 
 interface PeoplePageProps {
@@ -29,6 +29,30 @@ const PeoplePage: React.FC<PeoplePageProps> = ({ userEmail, onSelectPerson }) =>
 
   if (people === undefined) {
     return <div className="text-center py-12 text-gray-500">Chargement des personnes...</div>;
+  }
+  // Mode page plein ecran : on affiche la modale directement (sans liste derriere)
+  if (creating || editingPerson) {
+    return (
+      <>
+        {creating && (
+          <PersonFormModal
+            userEmail={userEmail}
+            onClose={() => setCreating(false)}
+            onSaved={() => setCreating(false)}
+            fullScreen
+          />
+        )}
+        {editingPerson && (
+          <PersonFormModal
+            userEmail={userEmail}
+            person={editingPerson}
+            onClose={() => setEditingPerson(null)}
+            onSaved={() => setEditingPerson(null)}
+            fullScreen
+          />
+        )}
+      </>
+    );
   }
 
   const filtered = people.filter((p) => {
@@ -92,23 +116,6 @@ const PeoplePage: React.FC<PeoplePageProps> = ({ userEmail, onSelectPerson }) =>
             />
           ))}
         </ul>
-      )}
-
-      {/* === MODALES === */}
-      {creating && (
-        <PersonFormModal
-          userEmail={userEmail}
-          onClose={() => setCreating(false)}
-          onSaved={() => setCreating(false)}
-        />
-      )}
-      {editingPerson && (
-        <PersonFormModal
-          userEmail={userEmail}
-          person={editingPerson}
-          onClose={() => setEditingPerson(null)}
-          onSaved={() => setEditingPerson(null)}
-        />
       )}
     </div>
   );
@@ -228,7 +235,8 @@ const PersonFormModal: React.FC<{
   person?: any;
   onClose: () => void;
   onSaved: () => void;
-}> = ({ userEmail, person, onClose, onSaved }) => {
+  fullScreen?: boolean;
+}> = ({ userEmail, person, onClose, onSaved, fullScreen = false }) => {
   const isEdit = !!person;
   const createMut = useMutation(api.loans.createPerson);
   const updateMut = useMutation(api.loans.updatePerson);
@@ -272,12 +280,32 @@ const PersonFormModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className={
+        fullScreen
+          ? 'min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 p-4'
+          : 'fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4'
+      }
+      onClick={fullScreen ? undefined : onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className={
+          fullScreen
+            ? 'bg-white rounded-2xl shadow-lg max-w-2xl mx-auto p-6 space-y-4'
+            : 'bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto'
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
+          {fullScreen ? (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour
+            </button>
+          ) : <span />}
           <h2 className="text-xl font-bold flex items-center gap-2">
             <UserIcon className="w-5 h-5 text-orange-600" />
             {isEdit ? 'Modifier la personne' : 'Nouvelle personne'}

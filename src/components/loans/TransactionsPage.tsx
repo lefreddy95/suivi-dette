@@ -228,6 +228,7 @@ const TransactionsPage: React.FC<TransactionsPageProps> = ({
               setCreatedLink(url);
             }
           }}
+          fullScreen
         />
       )}
     </div>

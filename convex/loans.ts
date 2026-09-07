@@ -360,6 +360,7 @@ export const updateTransaction = mutation({
     )),
     installmentStartDate: v.optional(v.union(v.number(), v.null())),
     installmentCount: v.optional(v.union(v.number(), v.null())),
+    notePhotoUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     checkUser(args.userEmail);
@@ -380,6 +381,7 @@ export const updateTransaction = mutation({
     if (args.installmentFrequency !== undefined) patch.installmentFrequency = args.installmentFrequency ?? undefined;
     if (args.installmentStartDate !== undefined) patch.installmentStartDate = args.installmentStartDate ?? undefined;
     if (args.installmentCount !== undefined) patch.installmentCount = args.installmentCount ?? undefined;
+    if (args.notePhotoUrl !== undefined) patch.notePhotoUrl = args.notePhotoUrl ?? undefined;
     await ctx.db.patch(args.transactionId, patch);
     // Si le statut vient de passer à "termine", logger un event
     if (args.status === "termine") {

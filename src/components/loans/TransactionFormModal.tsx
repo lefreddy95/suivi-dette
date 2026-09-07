@@ -4,8 +4,9 @@ import { api } from '../../../convex/_generated/api';
 import {
   X, HandCoins, Banknote, Package, PackageOpen, Wrench, WrenchIcon,
   Calendar, AlertCircle, StickyNote, CircleDollarSign, Repeat, ChevronDown, ChevronUp,
-  FileSignature,
+  FileSignature, ArrowLeft, Phone,
 } from 'lucide-react';
+import PhotoField from './PhotoField';
 
 interface TransactionFormModalProps {
   userEmail: string;
@@ -18,6 +19,8 @@ interface TransactionFormModalProps {
   onClose: () => void;
   // Passe le publicToken de la transaction créée (pour afficher le lien à partager)
   onSaved: (publicToken?: string) => void;
+  // Mode plein écran (defaut: false = modale)
+  fullScreen?: boolean;
 }
 
 type TransactionType =
@@ -98,7 +101,7 @@ const TYPES: Array<{
  * La personne est obligatoire et vient d'une liste préchargée.
  */
 const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
-  userEmail, people, defaultPersonId, defaultType, onClose, onSaved,
+  userEmail, people, defaultPersonId, defaultType, onClose, onSaved, fullScreen = false,
 }) => {
   const createMut = useMutation(api.loans.createTransaction);
   const [type, setType] = useState<TransactionType>(defaultType || 'money_lent');
@@ -128,6 +131,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   // === Contrepartie (l'autre personne qui va signer le contrat) ===
   const [counterpartyName, setCounterpartyName] = useState('');
   const [counterpartyEmail, setCounterpartyEmail] = useState('');
+  const [counterpartyPhone, setCounterpartyPhone] = useState('');
+  // === Note + photo ===
+  const [notePhotoUrl, setNotePhotoUrl] = useState<string | undefined>(undefined);
 
   // === CONSTANTES DERIVÉES (doivent être déclarées AVANT les useEffect qui en dépendent) ===
   const typeInfo = TYPES.find((t) => t.value === type)!;
@@ -151,6 +157,29 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setPersonId(people[0]._id);
     }
   }, [people, personId]);
+
+  // Auto-remplissage de la contrepartie depuis la personne selectionnee
+  // (pratique : la personne a peut-etre deja un email/phone dans la DB)
+  useEffect(() => {
+    if (!personId) return;
+    const p = people.find((x) => x._id === personId);
+    if (!p) return;
+    setCounterpartyName((prev) => prev || p.name || '');
+    setCounterpartyEmail((prev) => prev || p.email || '');
+    setCounterpartyPhone((prev) => prev || p.phone || '');
+  }, [personId, people]);
+
+  // Auto-remplissage de la contrepartie depuis la personne selectionnee
+  // (pratique : la personne a peut-etre deja un email/phone dans la DB)
+  useEffect(() => {
+    if (!personId) return;
+    const p = people.find((x) => x._id === personId);
+    if (!p) return;
+    // N'auto-remplit que si le champ est vide (l'user peut avoir commence a taper)
+    setCounterpartyName((prev) => prev || p.name || '');
+    setCounterpartyEmail((prev) => prev || p.email || '');
+    setCounterpartyPhone((prev) => prev || p.phone || '');
+  }, [personId, people]);
 
   const handleSave = async () => {
     if (!personId) {
@@ -209,6 +238,8 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         installmentCount: finalScheduleCount,
         counterpartyEmail: counterpartyEmail.trim() || undefined,
         counterpartyName: counterpartyName.trim() || undefined,
+        counterpartyPhone: counterpartyPhone.trim() || undefined,
+        notePhotoUrl,
       });
       // Si on a une URL publique, on l'affiche (la modale parent peut l'utiliser)
       onSaved(result?.publicToken);
@@ -220,12 +251,32 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className={
+        fullScreen
+          ? 'min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 p-4'
+          : 'fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4'
+      }
+      onClick={fullScreen ? undefined : onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className={
+          fullScreen
+            ? 'bg-white rounded-2xl shadow-lg max-w-2xl mx-auto p-6 space-y-4'
+            : 'bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto'
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
+          {fullScreen ? (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour
+            </button>
+          ) : <span />}
           <h2 className="text-xl font-bold flex items-center gap-2">
             <CircleDollarSign className="w-5 h-5 text-orange-600" />
             Nouvelle transaction
@@ -299,6 +350,19 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg"
               />
             </div>
+          </div>
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <Phone className="w-3 h-3" />
+              Téléphone <span className="text-gray-400 text-[10px]">(pour SMS / WhatsApp)</span>
+            </label>
+            <input
+              type="tel"
+              value={counterpartyPhone}
+              onChange={(e) => setCounterpartyPhone(e.target.value)}
+              placeholder="+33612345678"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg font-mono"
+            />
           </div>
         </div>
 
@@ -552,6 +616,15 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             placeholder="Contexte, accord verbal, etc."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none"
           />
+          {/* Photo jointe à la note */}
+          <div className="mt-2">
+            <PhotoField
+              label="Joindre une photo"
+              value={notePhotoUrl}
+              onChange={setNotePhotoUrl}
+              variant="compact"
+            />
+          </div>
         </div>
 
         {/* === ACTIONS === */}

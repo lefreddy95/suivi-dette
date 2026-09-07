@@ -206,6 +206,7 @@ export default defineSchema({
     contractText: v.optional(v.string()),  // snapshot du contrat au moment de la signature
     // === Audit ===
     note: v.optional(v.string()),
+    notePhotoUrl: v.optional(v.string()),  // photo jointe (base64, < 2 Mo)
     createdAt: v.number(),
     updatedAt: v.number(),
   })
