@@ -129,7 +129,15 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [counterpartyName, setCounterpartyName] = useState('');
   const [counterpartyEmail, setCounterpartyEmail] = useState('');
 
+  // === CONSTANTES DERIVÉES (doivent être déclarées AVANT les useEffect qui en dépendent) ===
+  const typeInfo = TYPES.find((t) => t.value === type)!;
   const isMoney = type === 'money_lent' || type === 'money_borrowed';
+  // Calcul auto du nombre d'echeances (montant total / montant par echeance)
+  const totalAmount = typeInfo.hasAmount ? parseFloat(amount) : 0;
+  const autoInstallmentCount = (hasSchedule && isMoney && totalAmount > 0 && scheduleAmount && parseFloat(scheduleAmount) > 0)
+    ? Math.ceil(totalAmount / parseFloat(scheduleAmount))
+    : null;
+
   // Si on change de type vers non-money, on reset l'échéancier
   useEffect(() => {
     if (!isMoney && hasSchedule) {
@@ -137,20 +145,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     }
   }, [isMoney, hasSchedule]);
 
-  // Calcul auto du nombre d'echeances (montant total / montant par echeance)
-  const totalAmount = typeInfo.hasAmount ? parseFloat(amount) : 0;
-  const autoInstallmentCount = (hasSchedule && isMoney && totalAmount > 0 && scheduleAmount && parseFloat(scheduleAmount) > 0)
-    ? Math.ceil(totalAmount / parseFloat(scheduleAmount))
-    : null;
-
   // Si pas de defaultPersonId, préselectionner la première personne
   useEffect(() => {
     if (!personId && people.length > 0) {
       setPersonId(people[0]._id);
     }
   }, [people, personId]);
-
-  const typeInfo = TYPES.find((t) => t.value === type)!;
 
   const handleSave = async () => {
     if (!personId) {

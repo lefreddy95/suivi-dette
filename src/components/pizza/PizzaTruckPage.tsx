@@ -11,7 +11,7 @@ import PeoplePage from '../loans/PeoplePage';
 import PersonDetailPage from '../loans/PersonDetailPage';
 import TransactionsPage from '../loans/TransactionsPage';
 import {
-  Pizza, CheckCircle, Clock, AlertCircle, Copy,
+  Wallet, CheckCircle, Clock, AlertCircle, Copy,
   RefreshCw, Settings, User, Calendar, Wrench,
   X, Save, MessageCircle, MessageSquare, ShieldCheck,
   ExternalLink, FileSignature, LogOut, Eye, Camera, ArrowLeft,
@@ -135,11 +135,11 @@ const PizzaTruckPage: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full">
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Pizza className="w-8 h-8 text-white" />
+              <Wallet className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Camion pizza — Suivi paiement</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Suivi-dette</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Connecte-toi avec Google pour suivre le paiement du camion pizza.
+              Connecte-toi avec Google pour acceder a ton suivi de prets.
             </p>
           </div>
 
@@ -399,7 +399,7 @@ const PizzaTruckPage: React.FC = () => {
   };
 
   const openWhatsapp = (payment: typeof payments[number]) => {
-    const message = `🍕 *${cfg.nomCamion}* — Versement n°${payment.numero}\n\n` +
+    const message = `🚚 *${cfg.nomCamion}* — Versement n°${payment.numero}\n\n` +
       `💰 Montant : *${payment.montant} €*\n` +
       `📅 Échéance : ${new Date(payment.dateEcheance).toLocaleDateString('fr-FR')}\n\n` +
       `👉 Connecte-toi ici pour signer ce versement :\n${window.location.origin}/pizza-truck?sign=${payment._id}`;
@@ -501,7 +501,7 @@ const PizzaTruckPage: React.FC = () => {
                 className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
                 title="Suivi-dette (camion pizza, ancien)"
               >
-                🍕 Camion
+                🚚 Camion
               </button>
             </div>
           </div>
@@ -594,7 +594,7 @@ const PizzaTruckPage: React.FC = () => {
               <h1 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <span className="whitespace-nowrap">{cfg.nomCamion}</span>
                 <span className="px-1.5 sm:px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap">
-                  🍕 Pizza Truck
+                  🚚 Suivi Camion
                 </span>
               </h1>
               <p className="text-[11px] sm:text-xs text-gray-500 truncate">

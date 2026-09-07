@@ -1,65 +1,262 @@
-# 🍕 Suivi-Dette — App dédiée au suivi de paiement du camion pizza
+# Suivi-dette
 
-App extraite de [lobry-sms-brocante](https://github.com/lefreddy95/lobry-sms-brocante) pour avoir une UI dédiée, légère, sans le reste de l'app SMS brocante.
+App de suivi de prêts entre particuliers. Suivez chaque prêt d'argent, d'objet ou de service en quelques secondes, avec preuves de signature, échéancier de remboursement et rappels.
 
-**Fonction** : suivre le paiement du camion pizza acheté par Freddy (acheteur) à son frère Francky (vendeur), 30 000 € au total, versé en mensualités de 500 € (modifiable).
+**Stack** : Vite + React + TypeScript · Convex (backend + DB réactive) · Clerk (auth) · Tailwind CSS · PWA installable.
 
-## Stack
+---
 
-- **Vite** + **React** + **TypeScript**
-- **Convex** (projet dédié `different-opossum-825`, instance Clerk partagée avec `lobry-sms-brocante`)
-- **Clerk** (même instance Clerk, 2 users autorisés : Freddy + Francky)
-- **Lucide React** (icônes)
-- **Framer Motion** (animations camion pizza)
-- **Tailwind CSS** (styles)
+## 🎯 Fonctionnalités
 
-## Setup local
+### Suivi multi-catégorie (6 types de transactions)
+
+- 💰 **Argent prêté** — tu prêtes, on te doit
+- 💸 **Argent emprunté** — tu empruntes, tu dois
+- 📦 **Objet prêté** — perceuse, livre, tente...
+- 📥 **Objet emprunté** — à rendre
+- 🔧 **Service rendu** — déménagement, cours, dépannage
+- 🙋 **Service reçu** — on t'a rendu un service
+
+### Échéancier de remboursement (money_)
+
+- Fréquence : hebdo / bi-mensuel / mensuel / trimestriel
+- Calcul auto du nombre d'échéances (montant total ÷ montant / échéance)
+- Aperçu live des 3 prochaines échéances
+- Badge "prochaine échéance" dans la fiche personne
+- 🎉 Alerte "Échéancier terminé" quand tout est remboursé
+
+### Preuves & signatures (2 parties)
+
+Chaque transaction peut être signée par les 2 parties (toi + contrepartie) :
+- ✍️ **Signature canvas** (souris / doigt) avec hash SHA-256 pour intégrité
+- 📄 **Contrat auto-généré** (5 articles : parties, objet, modalités, engagements, entrée en vigueur)
+- 🌐 **Page publique `/transaction/:token`** — la contrepartie signe SANS créer de compte
+- 📜 **Mention juridique** : conforme à l'article 1366 du Code civil (écrit électronique)
+
+### Remboursements partiels
+
+- Ajout de remboursement avec note optionnelle
+- Barre de progression (% remboursé)
+- Calcul auto du statut `termine` quand montant atteint
+- 💡 Quick-fill "Tout" / "Moitié" dans la modale
+
+### Envoi SMS & WhatsApp (réplique du pattern Pizza Truck)
+
+- 🟢 **WhatsApp** : ouvre `wa.me/<phone>?text=<message>` pré-rempli
+- 🔵 **SMS** : vrai SMS via worker Pushbullet → téléphone Android → MacroDroid
+- ✏️ Numéro et message **éditables** dans la modale avant envoi
+- 📅 **Timeline d'événements** : trace chaque envoi / signature / remboursement
+
+### Dashboard & insights
+
+- Hero card "À l'équilibre / On te doit / Tu dois"
+- 4 stats rapides (items prêtés, services, en cours, remboursé)
+- Prochaines échéances (30 jours)
+- Activité récente
+- **Intégration dette camion pizza** (legacy) en carte ambre
+
+### Mode multi-tenant (whitelist temporaire)
+
+- `lefreddy95@gmail.com` = **super admin** (accès à toutes les vues, migration, debug)
+- `franckylobry6@gmail.com` = utilisateur secondaire
+- TODO : migrer vers Clerk JWT (multi-utilisateurs SaaS)
+
+### PWA installable
+
+- Manifest + icônes (€ sur gradient orange/rouge)
+- Installable sur iOS et Android comme une vraie app
+- Mode offline (cache des assets statiques)
+
+---
+
+## 🏗️ Architecture
+
+```
+src/
+├── App.tsx                      # Routeur racine (3 routes)
+├── main.tsx                     # Entry point (Clerk + Convex)
+├── components/
+│   ├── LandingPage.tsx          # Page marketing (non signé)
+│   ├── ErrorBoundary.tsx        # Catch runtime errors
+│   └── pizza/                   # Module legacy "Suivi Camion"
+│       ├── PizzaTruckPage.tsx   # Page principale (camion)
+│       ├── ContractPage.tsx     # Contrat signable
+│       ├── SettingsPage.tsx     # Paramètres (admin)
+│       ├── PizzaTruckAnimation.tsx
+│       └── pizza-animations.css
+└── components/loans/            # Module "Suivi-dette" (Kuidi)
+    ├── DashboardPage.tsx        # Home / stats
+    ├── PeoplePage.tsx           # Liste des personnes
+    ├── PersonDetailPage.tsx     # Fiche personne + transactions + timeline
+    ├── TransactionsPage.tsx     # Liste globale transactions + filtres
+    ├── TransactionFormModal.tsx # Modale création (6 types + échéancier)
+    ├── SignInviteModal.tsx      # Modale envoi SMS/WhatsApp
+    ├── SignaturePad.tsx         # Canvas signature
+    ├── ContractDocument.tsx     # Rendu contrat auto-généré
+    └── PublicTransactionPage.tsx # /transaction/:token (sans auth)
+
+convex/
+├── schema.ts                    # 7 tables (pizzaConfig, pizzaPayments, pizzaAuditLog, people, transactions, reminders, ...)
+├── pizza.ts                     # Backend legacy (camion)
+└── loans.ts                     # Backend Kuidi (people, transactions, public, sendInvite, logEvent)
+```
+
+### Tables Convex (7)
+
+| Table | Rôle | Cycle de vie |
+|---|---|---|
+| `pizzaConfig` | Config singleton (prix, mensualité, dates, signatures contrat) | Actif (legacy) |
+| `pizzaPayments` | 60 mensualités du camion + ponctuel | Actif (legacy) |
+| `pizzaAuditLog` | Traçabilité juridique de chaque action | Actif (legacy) |
+| `people` | Contacts du user (multi-tenant par ownerEmail) | Actif |
+| `transactions` | Toutes les transactions (6 types + échéancier + signatures + events) | Actif |
+| `reminders` | Notifications à venir (rappels échéances) | Préparé, UI Phase 2 |
+
+### Routing (`App.tsx`)
+
+```
+/                          → LandingPage (si non signé) ou PizzaTruckPage (si signé)
+/transaction/:token        → PublicTransactionPage (sans auth, page partageable)
+```
+
+---
+
+## 🚀 Setup local
+
+### Pré-requis
+- Node.js ≥ 18
+- Compte Convex (https://dashboard.convex.dev)
+- Compte Clerk (https://dashboard.clerk.com)
+- (Optionnel) Worker Pushbullet pour les SMS
+
+### Variables d'environnement
+
+`.env.local` (ou dans Netlify pour la prod) :
 
 ```bash
+# Convex
+CONVEX_DEPLOY_KEY=...              # Pour `npx convex deploy` (Netlify prod)
+VITE_CONVEX_URL=https://...convex.cloud
+VITE_CONVEX_SITE_URL=https://suivi-dette.netlify.app
+
+# Clerk
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+
+# Pushbullet (pour les SMS) — optionnel
+PUSHBULLET_WORKER_URL=https://admin.ableiges.com
+```
+
+### Commandes
+
+```bash
+# Installer
 npm install
 
-# 1. Convex is already configured to the dedicated project `different-opossum-825`.
-#    Just run `npx convex dev` to spin up a local dev proxy.
-npx convex dev
+# Dev (terminal 1 : Convex, terminal 2 : Vite)
+npx convex dev              # Génère les types et déploie en dev
+npm run dev                 # Vite + HMR
 
-# 2. Fill in .env with your Clerk publishable key
-cp .env.example .env
-# Edit .env and set VITE_CLERK_PUBLISHABLE_KEY
+# Build prod
+npm run build               # Vite build (sans Convex deploy)
+npm run build:netlify       # Convex deploy + Vite build (utilisé par Netlify)
 
-# 3. Run dev
-npm run dev
+# Regénérer les icônes PWA
+python scripts/generate-pwa-icons.py
 ```
 
-## Build & deploy
+---
+
+## 📦 Déploiement
+
+Hébergé sur **Netlify** : `https://suivi-dette.netlify.app`
+
+- Auto-deploy sur push vers `main`
+- Build command : `npm run build:netlify` (= Convex deploy + Vite build)
+- Config : `netlify.toml` (redirects SPA, build command, env vars)
+- Redirection `/*` → `/index.html` (SPA routing)
+
+### Convex
+
+- Projet : `different-opossum-825`
+- Dashboard : https://dashboard.convex.dev/t/mr-l-e169b/suivi-dette/different-opossum-825
+- Schema versionné (les changements obligatoires sur docs existants sont refusés)
+
+---
+
+## 🔐 Sécurité
+
+| Mesure | État |
+|---|---|
+| Auth Clerk (Google / email + password) | ✅ Actif |
+| Whitelist multi-tenant (`ALLOWED_USERS`) | ⚠️ Temporaire — à migrer vers Clerk JWT |
+| `publicToken` (24 chars alphanumériques) | ✅ ~143 bits d'entropie |
+| Hash SHA-256 des signatures canvas | ✅ Intégrité vérifiable |
+| Audit log des actions (legacy pizza) | ✅ Actif |
+| Mode test 1234 (bypass Clerk) | ⚠️ **À SUPPRIMER** avant prod publique |
+
+---
+
+## 🧪 Tests manuels
 
 ```bash
-# Local build
+# Vérifier que le build passe
 npm run build
 
-# Deploy Convex + Vite to Netlify (CI/CD via build:netlify)
-git push origin main  # Netlify auto-deploys
+# Tester une migration DB
+# Aller dans Paramètres → Section "Migration Kuidi" → Cliquer "Migrer la transaction camion"
 ```
 
-## Variables d'env Netlify
+---
 
-| Variable | Type | Valeur |
-|---|---|---|
-| `VITE_CONVEX_URL` | build-time (Vite) | `https://different-opossum-825.eu-west-1.convex.cloud` |
-| `VITE_CLERK_PUBLISHABLE_KEY` | build-time (Vite) | (instance Clerk partagée avec `lobry-sms-brocante`) |
-| `CONVEX_DEPLOY_KEY` | runtime (Convex) | (clé prod, générée dans le dashboard du projet `different-opossum-825`) |
-| `PUSHBULLET_WORKER_URL` | runtime (Convex) | `https://admin.ableiges.com` (worker Pushbullet qui envoie via MacroDroid) |
+## 📚 Roadmap
 
-## Routes
+### Phase 1 — Kuidi MVP ✅ (commits 2655396 → 631774b)
+- Schema, dashboard, people, transactions
+- 6 types de transactions
+- Échéancier de remboursement
 
-| URL | Description |
+### Phase 2 — Signatures & preuves ✅ (commits 016f75a → d834657)
+- Canvas signature + hash SHA-256
+- Page publique `/transaction/:token`
+- Contrat auto-généré
+- Envoi SMS/WhatsApp (worker Pushbullet)
+- Timeline d'événements
+- Migration dette camion pizza
+
+### Phase 3 — Multi-tenant & SaaS (à venir)
+- Migration Clerk JWT (suppression whitelist)
+- Comptes multiples par user (vraie SaaS)
+- Resend pour envoi email automatique (au lieu de Pushbullet)
+- Landing page publique (déjà en place) avec pricing
+- Stripe (free vs pro)
+- Suppression du mode test 1234
+
+### Phase 4 — UX avancée
+- Rappels/notifs push (table `reminders` déjà prête)
+- Photo rapide d'objet
+- Recherche globale
+- Mode sombre
+- Export PDF des contrats signés
+
+---
+
+## 🧰 Scripts
+
+| Script | Usage |
 |---|---|
-| `/` | Page unique : `PizzaTruckPage` (calendrier + signatures) |
-| `/?sign=PAYMENT_ID` | Deep link pour signer un paiement (envoyé par WhatsApp) |
+| `scripts/generate-pwa-icons.py` | Regénère les 5 icônes PWA + favicon SVG (design : € sur gradient) |
 
-## Whitelist
+---
 
-Seuls 2 emails ont accès (vérifié côté Convex dans `pizza.ts`) :
-- `lefreddy95@gmail.com` (acheteur, Freddy)
-- `franckylobry6@gmail.com` (vendeur, Francky)
+## 👤 Auteur
 
-Tout autre email → page "Accès refusé".
+**Freddy** (`lefreddy95@gmail.com`) — super admin & créateur
+
+Multi-comptes associés : Freddy, Francky, Mandy, Djema (chacun son Abby).
+
+---
+
+## 📄 Licence
+
+Propriétaire — utilisation personnelle uniquement.
