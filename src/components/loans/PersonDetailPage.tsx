@@ -657,7 +657,19 @@ const RepaymentModal: React.FC<{
         amount: numAmount,
         note: note.trim() || undefined,
       });
-      onClose();
+      // Affiche un bandeau de succès avec lien de signature (au lieu de fermer direct)
+      if (result.signToken) {
+        const url = `${window.location.origin}/repayment/${result.signToken}`;
+        setCreatedRepaymentLink({
+          url,
+          amount: numAmount,
+          phone: tx.counterpartyPhone,
+          txTitle: tx.title,
+        });
+        // Ne PAS fermer la modale : on laisse l'user copier/envoyer le lien
+      } else {
+        onClose();
+      }
       if (result.isComplete) {
         setTimeout(() => alert('🎉 Transaction terminée !'), 100);
       }
@@ -666,6 +678,27 @@ const RepaymentModal: React.FC<{
     } finally {
       setSaving(false);
     }
+  };
+
+  // === ENVOI RAPIDE WHATSAPP ===
+  const [createdRepaymentLink, setCreatedRepaymentLink] = useState<{
+    url: string;
+    amount: number;
+    phone?: string;
+    txTitle: string;
+  } | null>(null);
+  const formatAmountDec = (n: number) =>
+    n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sendWhatsApp = () => {
+    if (!createdRepaymentLink) return;
+    const phone = (createdRepaymentLink.phone || '').replace(/[^\d]/g, '');
+    const msg = `💰 *Confirmation de remboursement* — ${createdRepaymentLink.txTitle}\n\n` +
+      `Montant : *${formatAmountDec(createdRepaymentLink.amount)} €*\n\n` +
+      `👉 Clique ici pour signer et confirmer :\n${createdRepaymentLink.url}`;
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
   };
 
   const formatAmount = (n: number) =>
@@ -775,6 +808,82 @@ const RepaymentModal: React.FC<{
           </button>
         </div>
       </div>
+
+      {/* === BANDEAU SUCCÈS : lien de signature à partager === */}
+      {createdRepaymentLink && (
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-5 space-y-3">
+          <div className="flex items-start gap-2">
+            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 text-white text-lg">
+              ✓
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-green-900">Remboursement ajouté !</p>
+              <p className="text-sm text-green-700">
+                Envoie ce lien à la contrepartie pour qu'elle signe et confirme avoir bien reçu {formatAmountDec(createdRepaymentLink.amount)} €.
+              </p>
+            </div>
+          </div>
+
+          {/* Lien copiable */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={createdRepaymentLink.url}
+              readOnly
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+              className="flex-1 px-2 py-1.5 text-xs border border-green-300 rounded-md bg-white font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(createdRepaymentLink.url)
+                  .then(() => alert('✓ Lien copié !'))
+                  .catch(() => prompt('Copie ce lien :', createdRepaymentLink.url));
+              }}
+              className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-md"
+            >
+              Copier
+            </button>
+          </div>
+
+          {/* Envoi rapide WhatsApp */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={sendWhatsApp}
+              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 text-sm"
+            >
+              <Send className="w-4 h-4" />
+              {createdRepaymentLink.phone ? 'Envoyer WhatsApp' : 'Partager WhatsApp'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(createdRepaymentLink.url)
+                  .then(() => alert('✓ Lien copié. Ouvre ton app SMS et colle-le.'));
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 text-sm"
+            >
+              <Copy className="w-4 h-4" />
+              Copier pour SMS
+            </button>
+          </div>
+
+          {createdRepaymentLink.phone && (
+            <p className="text-[10px] text-gray-500 text-center">
+              💡 WhatsApp enverra au {createdRepaymentLink.phone}. Pour SMS, copie le lien et envoie-le depuis ton app SMS.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
     </div>
   );
 };

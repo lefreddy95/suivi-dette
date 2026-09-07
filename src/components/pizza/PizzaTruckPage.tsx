@@ -70,9 +70,23 @@ const PizzaTruckPage: React.FC = () => {
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
   // Onglet principal : 'kuidi' (Dashboard), 'kuidi-people', 'kuidi-person-detail',
   // 'kuidi-transactions' (liste globale), 'camion' (legacy), 'contrat', 'parametres'
-  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'camion' | 'contrat' | 'parametres'>('kuidi');
+  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'camion' | 'contrat' | 'parametres'>(() => {
+    // Lit l'URL au mount (permet de bookmarker / partager des liens)
+    const p = window.location.pathname;
+    if (p === '/transactions') return 'kuidi-transactions';
+    if (p === '/people' || p === '/personnes') return 'kuidi-people';
+    if (p === '/camion' || p === '/pizza-truck') return 'camion';
+    if (p === '/contrat') return 'contrat';
+    if (p === '/parametres' || p === '/settings') return 'parametres';
+    const personMatch = p.match(/^\/person\/([A-Za-z0-9_-]+)\/?$/);
+    if (personMatch) return 'kuidi-person-detail';
+    return 'kuidi';
+  });
   // ID de la personne selectionnee (pour le detail)
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(() => {
+    const personMatch = window.location.pathname.match(/^\/person\/([A-Za-z0-9_-]+)\/?$/);
+    return personMatch ? personMatch[1] : null;
+  });
   // Filtre personne pré-appliqué quand on arrive sur TransactionsPage depuis une personne
   const [transactionFilterPersonId, setTransactionFilterPersonId] = useState<string | null>(null);
   // Auto-open create modal quand on clique sur "+" depuis le Dashboard
@@ -99,6 +113,24 @@ const PizzaTruckPage: React.FC = () => {
     api.pizza.listAuditLog,
     userEmail && isAcheteur ? { userEmail } : 'skip'
   );
+
+  // Synchronise l'URL avec le state (permet de bookmarker / partager des liens).
+  // A chaque changement de currentView ou selectedPersonId, on met a jour l'URL
+  // via history.replaceState (sans pousser dans l'historique pour eviter le
+  // spam de back/forward).
+  useEffect(() => {
+    let url = '/';
+    if (currentView === 'kuidi-transactions') url = '/transactions';
+    else if (currentView === 'kuidi-people') url = '/people';
+    else if (currentView === 'kuidi-person-detail' && selectedPersonId) {
+      url = `/person/${selectedPersonId}`;
+    } else if (currentView === 'camion') url = '/camion';
+    else if (currentView === 'contrat') url = '/contrat';
+    else if (currentView === 'parametres') url = '/parametres';
+    if (window.location.pathname !== url) {
+      window.history.replaceState(null, '', url);
+    }
+  }, [currentView, selectedPersonId]);
 
   // Synchronise le numéro WhatsApp du vendeur avec la config DB dès qu'elle
   // arrive. Ce useEffect est placé ICI (avant les early returns) pour

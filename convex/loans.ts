@@ -448,7 +448,10 @@ export const addRepayment = mutation({
       amount: args.amount,
       date: Date.now(),
       note: args.note,
+      // Token unique pour signer ce remboursement via /repayment/:token
+      signToken: generatePublicToken(),
     };
+    const newRepaymentIndex = t.repayments.length;
     const newTotal = t.totalRepaid + args.amount;
     const now = Date.now();
     const patch: Record<string, any> = {
@@ -471,7 +474,13 @@ export const addRepayment = mutation({
     await ctx.db.patch(args.transactionId, {
       events: [...(t.events ?? []), event],
     });
-    return { success: true, newTotal, isComplete: newTotal >= t.amount };
+    return {
+      success: true,
+      newTotal,
+      isComplete: newTotal >= t.amount,
+      repaymentIndex: newRepaymentIndex,
+      signToken: newRepayment.signToken,
+    };
   },
 });
 
@@ -962,5 +971,90 @@ export const sendInvite = action({
       details: `SMS envoyé au ${phone} : ${message.slice(0, 80)}...`,
     });
     return { success: true, to: phone, message };
+  },
+});
+
+// === PUBLIC : page signature de remboursement ================================
+// Quand Freddy ajoute un remboursement, il peut envoyer le lien
+// /repayment/:signToken a Francky pour qu'il confirme avoir bien recu l'argent.
+
+export const getRepaymentBySignToken = query({
+  args: { signToken: v.string() },
+  handler: async (ctx, args) => {
+    // Recherche par scan (le signToken est dans repayments[], pas un champ direct)
+    // Pour des raisons de perf on devrait avoir un index, mais on garde simple
+    const allTx = await ctx.db.query("transactions").collect();
+    for (const tx of allTx) {
+      const idx = tx.repayments.findIndex((r) => r.signToken === args.signToken);
+      if (idx !== -1) {
+        const person = await ctx.db.get(tx.personId);
+        return {
+          repayment: tx.repayments[idx],
+          repaymentIndex: idx,
+          transaction: {
+            _id: tx._id,
+            type: tx.type,
+            title: tx.title,
+            amount: tx.amount,
+            totalRepaid: tx.totalRepaid,
+            status: tx.status,
+          },
+          ownerName: tx.ownerEmail,  // Le user peut le connaitre
+          personName: person?.name || "Personne",
+        };
+      }
+    }
+    throw new ConvexError("Lien invalide ou expire");
+  },
+});
+
+export const signRepaymentByToken = mutation({
+  args: {
+    signToken: v.string(),
+    signerName: v.string(),
+    signerEmail: v.string(),
+    signaturePng: v.string(),
+    signatureHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const allTx = await ctx.db.query("transactions").collect();
+    for (const tx of allTx) {
+      const idx = tx.repayments.findIndex((r) => r.signToken === args.signToken);
+      if (idx !== -1) {
+        const r = tx.repayments[idx];
+        if (r.counterpartySignature) {
+          throw new ConvexError("Ce remboursement a deja ete signe");
+        }
+        const newRepayments = tx.repayments.map((r, i) => {
+          if (i !== idx) return r;
+          return {
+            ...r,
+            counterpartySignature: {
+              signerName: args.signerName,
+              signerEmail: args.signerEmail,
+              signedAt: Date.now(),
+              signaturePng: args.signaturePng,
+              signatureHash: args.signatureHash,
+            },
+          };
+        });
+        await ctx.db.patch(tx._id, {
+          repayments: newRepayments,
+          updatedAt: Date.now(),
+        });
+        // Log dans la timeline
+        await ctx.db.patch(tx._id, {
+          events: [...(tx.events ?? []), {
+            type: "repayment_signed",
+            date: Date.now(),
+            actor: args.signerEmail,
+            signerName: args.signerName,
+            details: `Confirmation du remboursement de ${r.amount} € via lien magique`,
+          }],
+        });
+        return { success: true };
+      }
+    }
+    throw new ConvexError("Lien invalide");
   },
 });

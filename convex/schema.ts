@@ -142,6 +142,8 @@ export default defineSchema({
       amount: v.number(),
       date: v.number(),
       note: v.optional(v.string()),
+      // Token unique pour que la contrepartie signe ce remboursement via /repayment/:token
+      signToken: v.optional(v.string()),
       // Signature de la contrepartie qui confirme le remboursement
       counterpartySignature: v.optional(v.object({
         signerName: v.string(),

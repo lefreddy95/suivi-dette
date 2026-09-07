@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import PizzaTruckPage from './components/pizza/PizzaTruckPage';
 import LandingPage from './components/LandingPage';
 import PublicTransactionPage from './components/loans/PublicTransactionPage';
+import RepaymentSignPage from './components/loans/RepaymentSignPage';
 
 /**
  * App — Routeur racine.
@@ -39,6 +40,11 @@ function App() {
   const publicMatch = pathname.match(/^\/transaction\/([A-Za-z0-9_-]+)\/?$/);
   if (publicMatch) {
     return <PublicTransactionPage token={publicMatch[1]} />;
+  }
+  // Route publique : /repayment/:signToken
+  const repaymentMatch = pathname.match(/^\/repayment\/([A-Za-z0-9_-]+)\/?$/);
+  if (repaymentMatch) {
+    return <RepaymentSignPage signToken={repaymentMatch[1]} />;
   }
 
   return isSignedIn ? <PizzaTruckPage /> : <LandingPage />;
