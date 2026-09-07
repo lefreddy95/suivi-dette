@@ -789,6 +789,41 @@ export const migrateCamionToKuidi = mutation({
   },
 });
 
+// === CLEANUP : supprimer l'ancien contrat camion pizza de la DB ============
+// ATTENTION : action DESTRUCTIVE. Supprime TOUS les documents des 3 tables
+// legacy (pizzaConfig, pizzaPayments, pizzaAuditLog). A utiliser UNIQUEMENT
+// quand l'utilisateur veut nettoyer sa DB avant de retirer les tables du schema.
+//
+// Apres l'execution de cette mutation, les tables peuvent etre retirees du
+// schema.ts dans un commit suivant (Convex refuse sinon a cause des docs).
+export const cleanupLegacyPizza = mutation({
+  args: { userEmail: v.string() },
+  handler: async (ctx, args) => {
+    checkUser(args.userEmail);
+    // 1. Supprimer tous les paiements
+    const payments = await ctx.db.query("pizzaPayments").collect();
+    for (const p of payments) {
+      await ctx.db.delete(p._id);
+    }
+    // 2. Supprimer tous les audit logs
+    const audits = await ctx.db.query("pizzaAuditLog").collect();
+    for (const a of audits) {
+      await ctx.db.delete(a._id);
+    }
+    // 3. Supprimer la config (singleton)
+    const configs = await ctx.db.query("pizzaConfig").collect();
+    for (const c of configs) {
+      await ctx.db.delete(c._id);
+    }
+    return {
+      deletedPayments: payments.length,
+      deletedAudits: audits.length,
+      deletedConfigs: configs.length,
+      message: `Cleanup OK : ${payments.length} paiements, ${audits.length} audits, ${configs.length} configs supprimes`,
+    };
+  },
+});
+
 // Permet au contrepartie de confirmer un remboursement (avec sa signature)
 export const confirmRepaymentPublic = mutation({
   args: {

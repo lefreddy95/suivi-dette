@@ -34,7 +34,9 @@ const KuidiSettingsPage: React.FC<KuidiSettingsPageProps> = ({
   const { user } = useUser();
   const { openUserProfile } = useClerk();
   const migrateCamionMut = useMutation(api.loans.migrateCamionToKuidi);
+  const cleanupPizzaMut = useMutation(api.loans.cleanupLegacyPizza);
   const [migrating, setMigrating] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   // Prefs notifications (stockees en local pour l'instant, Phase 2 = backend)
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
@@ -176,6 +178,46 @@ const KuidiSettingsPage: React.FC<KuidiSettingsPageProps> = ({
           <p className="text-[10px] text-blue-700 italic">
             Idempotent : ne fait rien si deja migre.
           </p>
+
+          {/* === SUPPRIMER L'ANCIEN CONTRAT === */}
+          <div className="border-t-2 border-blue-200 pt-3 mt-3">
+            <p className="text-xs text-blue-800 font-semibold mb-2">
+              🗑️ Supprimer l'ancien contrat de la DB (action destructive)
+            </p>
+            <p className="text-[10px] text-blue-700 mb-2 italic">
+              Supprime TOUS les documents des 3 tables legacy (pizzaConfig,
+              pizzaPayments, pizzaAuditLog). Action IRREVERSIBLE.
+              A utiliser quand tu veux nettoyer completement l'app.
+            </p>
+            <button
+              onClick={async () => {
+                const ok = window.confirm(
+                  '⚠️ ATTENTION : action DESTRUCTIVE !\n\n' +
+                  'Cette action va supprimer DEFINITIVEMENT :\n' +
+                  '  - La config du contrat camion (pizzaConfig)\n' +
+                  '  - TOUS les 51 paiements (pizzaPayments)\n' +
+                  '  - TOUT l\'historique d\'audit (pizzaAuditLog)\n\n' +
+                  'Cette action est IRREVERSIBLE.\n\n' +
+                  'Continuer ?'
+                );
+                if (!ok) return;
+                setCleaning(true);
+                try {
+                  const result = await cleanupPizzaMut({ userEmail });
+                  alert(`✓ ${result.message}`);
+                } catch (e) {
+                  alert('Erreur: ' + (e instanceof Error ? e.message : 'inconnue'));
+                } finally {
+                  setCleaning(false);
+                }
+              }}
+              disabled={cleaning}
+              className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {cleaning ? 'Suppression en cours...' : "Supprimer l'ancien contrat de la DB"}
+            </button>
+          </div>
         </section>
       )}
 
