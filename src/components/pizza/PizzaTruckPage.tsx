@@ -70,13 +70,12 @@ const PizzaTruckPage: React.FC = () => {
   const [previewAs, setPreviewAs] = useState<'acheteur' | 'vendeur' | null>(null);
   // Onglet principal : 'kuidi' (Dashboard), 'kuidi-people', 'kuidi-person-detail',
   // 'kuidi-transactions' (liste globale), 'kuidi-transaction' (page dediee),
-  // 'camion' (legacy), 'parametres' (l'ancien contrat a ete supprime)
-  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'kuidi-transaction' | 'camion' | 'parametres'>(() => {
+  // 'parametres' (l'ancien contrat + onglet camion ont ete supprimes)
+  const [currentView, setCurrentView] = useState<'kuidi' | 'kuidi-people' | 'kuidi-person-detail' | 'kuidi-transactions' | 'kuidi-transaction' | 'parametres'>(() => {
     // Lit l'URL au mount (permet de bookmarker / partager des liens)
     const p = window.location.pathname;
     if (p === '/transactions') return 'kuidi-transactions';
     if (p === '/people' || p === '/personnes') return 'kuidi-people';
-    if (p === '/camion' || p === '/pizza-truck') return 'camion';
     if (p === '/parametres' || p === '/settings') return 'parametres';
     const personMatch = p.match(/^\/person\/([A-Za-z0-9_-]+)\/?$/);
     if (personMatch) return 'kuidi-person-detail';
@@ -133,8 +132,7 @@ const PizzaTruckPage: React.FC = () => {
       url = `/person/${selectedPersonId}`;
     } else if (currentView === 'kuidi-transaction' && selectedTransactionId) {
       url = `/tx/${selectedTransactionId}`;
-    } else if (currentView === 'camion') url = '/camion';
-    else if (currentView === 'parametres') url = '/parametres';
+    } else if (currentView === 'parametres') url = '/parametres';
     if (window.location.pathname !== url) {
       window.history.replaceState(null, '', url);
     }
@@ -538,13 +536,6 @@ const PizzaTruckPage: React.FC = () => {
                   ⚙️
                 </button>
               )}
-              <button
-                onClick={() => setCurrentView('camion')}
-                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100"
-                title="Suivi-dette (camion pizza, ancien)"
-              >
-                🚚 Camion
-              </button>
             </div>
           </div>
         </header>
