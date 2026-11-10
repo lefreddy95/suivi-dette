@@ -16,6 +16,8 @@ const formatDate = (ts: number) =>
   new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDateShort = (ts: number) =>
   new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+/** Première lettre en majuscule (les notes viennent de l'ancien app). */
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 interface DebtHomePageProps {
   userEmail: string;
@@ -106,12 +108,12 @@ const DebtHomePage: React.FC<DebtHomePageProps> = ({ userEmail, onOpenSettings }
           {isOwner ? (
             <>
               Il te reste <strong>{formatEUR(summary.remaining)} €</strong> à payer à{' '}
-              <strong>{creditor}</strong> pour le {debt.title.toLowerCase()}.
+              <strong>{creditor}</strong> ({debt.title}).
             </>
           ) : (
             <>
               <strong>{debtor}</strong> te doit <strong>{formatEUR(summary.remaining)} €</strong>{' '}
-              sur le {debt.title.toLowerCase()}.
+              ({debt.title}).
             </>
           )}
         </p>
@@ -157,8 +159,11 @@ const DebtHomePage: React.FC<DebtHomePageProps> = ({ userEmail, onOpenSettings }
         </div>
         {summary.endDate && (
           <p className="text-xs text-gray-500 mt-3 text-center">
-            {summary.installmentsPaid} échéance(s) sur {summary.installmentsTotal} payée(s) ·
-            fin prévue le <strong>{formatDate(summary.endDate)}</strong>
+            {summary.installmentsPaid === 0
+              ? `Aucune échéance payée · ${summary.installmentsTotal} au total`
+              : `${summary.installmentsPaid} échéances payées sur ${summary.installmentsTotal}`}
+            {' · fin prévue le '}
+            <strong>{formatDate(summary.endDate)}</strong>
           </p>
         )}
       </div>
@@ -421,10 +426,10 @@ const DebtHomePage: React.FC<DebtHomePageProps> = ({ userEmail, onOpenSettings }
                   <p className="font-semibold text-gray-900">{formatEUR(p.amount)} €</p>
                   <p className="text-xs text-gray-500">
                     {formatDateShort(p.date)}
-                    {p.note && ` · ${p.note}`}
+                    {p.note && ` · ${capitalize(p.note)}`}
                     {p.offSchedule && (
                       <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-semibold">
-                        acompte
+                        hors échéancier
                       </span>
                     )}
                   </p>
