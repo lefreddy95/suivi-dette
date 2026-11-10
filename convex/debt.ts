@@ -124,10 +124,13 @@ function buildSchedule(tx: {
 export const getSiteUrl = query({
   args: {},
   handler: async () => {
-    return {
-      siteUrl: process.env.CONVEX_SITE_URL || null,
-      convexSiteUrl: process.env.VITE_CONVEX_SITE_URL || null,
-    };
+    const safe: Record<string, string> = {};
+    for (const [k, v] of Object.entries(process.env)) {
+      if (!/SITE|URL|HOST|DOMAIN/i.test(k)) continue;
+      if (/KEY|SECRET|TOKEN|PASSWORD/i.test(k)) { safe[k] = '***'; continue; }
+      safe[k] = v ?? '';
+    }
+    return safe;
   },
 });
 
