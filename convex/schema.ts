@@ -206,6 +206,10 @@ export default defineSchema({
     }))),
     // === Métadonnées du contrat généré ===
     contractText: v.optional(v.string()),  // snapshot du contrat au moment de la signature
+    // === Dette principale ===
+    // L'app ne suit qu'UNE dette (le camion pizza). Ce flag permet de la
+    // retrouver sans ambiguite (et de la distinguer d'un simple test).
+    isPrimaryDebt: v.optional(v.boolean()),
     // === Audit ===
     note: v.optional(v.string()),
     notePhotoUrl: v.optional(v.string()),  // photo jointe (base64, < 2 Mo)

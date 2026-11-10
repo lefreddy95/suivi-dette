@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
-import { Trash2, Check, X } from 'lucide-react';
+import { Trash2, Check } from 'lucide-react';
 
 interface SignaturePadProps {
   // Callback quand la signature est validee
@@ -51,7 +51,11 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
 
   return (
     <div className="space-y-2">
-      <div className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white">
+      <div
+        className={`border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white ${
+          disabled ? 'pointer-events-none opacity-60' : ''
+        }`}
+      >
         <SignatureCanvas
           ref={sigRef}
           penColor={penColor}
@@ -63,7 +67,6 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
           }}
           onEnd={handleEnd}
           backgroundColor="rgba(255,255,255,0)"
-          disabled={disabled}
         />
       </div>
       <div className="flex items-center justify-between gap-2">

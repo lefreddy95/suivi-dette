@@ -72,8 +72,6 @@ const PizzaTruckAnimation: React.FC<PizzaTruckAnimationProps> = ({ progressPerce
     };
   }, [pizzas]);
 
-  // Pourcentage de paiement atteint (0-1)
-  const progressFraction = progressPercent / 100;
   // Y a-t-il déjà du progrès ?
   const isMoving = progressPercent > 0;
 

@@ -4,7 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import SignaturePad from './SignaturePad';
 import {
   ShieldCheck, AlertCircle, CheckCircle2, FileSignature,
-  Mail, User, ArrowLeft, Banknote,
+  Mail, User, Banknote,
 } from 'lucide-react';
 
 interface RepaymentSignPageProps {

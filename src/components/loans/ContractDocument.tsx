@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Calendar, User, Hash } from 'lucide-react';
+import { FileText, Calendar } from 'lucide-react';
 
 interface ContractDocumentProps {
   transaction: any;
@@ -10,7 +10,7 @@ interface ContractDocumentProps {
 /**
  * ContractDocument — Génère un texte de contrat à partir d'une transaction.
  *
- * Le contrat est affiché dans la page publique ET dans la fiche personne.
+ * Le contrat est affiché dans la page publique ET dans l'app.
  * Le contenu est généré côté front (à partir des données de la transaction)
  * et stocké en DB au moment de la signature pour preuve.
  *
@@ -18,6 +18,10 @@ interface ContractDocumentProps {
  * notarié. Il sert de preuve d'engagement mutuel (article 1366 du Code
  * civil : "L'écrit électronique a la même force probante que l'écrit
  * papier").
+ *
+ * IMPORTANT — sens des parties : quand le createur de la transaction
+ * EMPRUNTE (type "money_borrowed"), c'est LUI qui est le débiteur : la
+ * Partie A (créancier) est alors la contrepartie, pas le createur.
  */
 const ContractDocument: React.FC<ContractDocumentProps> = ({
   transaction: tx, ownerName, personName,
@@ -32,14 +36,33 @@ const ContractDocument: React.FC<ContractDocumentProps> = ({
   const isItem = tx.type === 'item_lent' || tx.type === 'item_borrowed';
   const isService = tx.type === 'service_done' || tx.type === 'service_received';
 
+  // Le createur de la transaction est-il le debiteur (il a emprunte) ?
+  const ownerIsDebtor =
+    tx.type === 'money_borrowed' ||
+    tx.type === 'item_borrowed' ||
+    tx.type === 'service_received';
+
+  // === QUI EST QUI ===
+  const contrepartie = tx.counterpartyName || personName;
+  const partieA = ownerIsDebtor
+    ? { name: contrepartie, email: tx.counterpartyEmail, role: 'Créancier (vendeur)' }
+    : { name: ownerName, email: tx.ownerEmail, role: 'Créancier / prêteur' };
+  const partieB = ownerIsDebtor
+    ? { name: ownerName, email: tx.ownerEmail, role: 'Débiteur (acheteur)' }
+    : { name: contrepartie, email: tx.counterpartyEmail, role: 'Débiteur / emprunteur' };
+
   // Sens du prêt (qui doit quoi à qui)
   let sense = '';
-  if (tx.type === 'money_lent') sense = `${ownerName} prête de l'argent à ${tx.counterpartyName || personName}`;
-  else if (tx.type === 'money_borrowed') sense = `${ownerName} emprunte de l'argent à ${tx.counterpartyName || personName}`;
-  else if (tx.type === 'item_lent') sense = `${ownerName} prête un objet à ${tx.counterpartyName || personName}`;
-  else if (tx.type === 'item_borrowed') sense = `${ownerName} emprunte un objet à ${tx.counterpartyName || personName}`;
-  else if (tx.type === 'service_done') sense = `${ownerName} rend un service à ${tx.counterpartyName || personName}`;
-  else if (tx.type === 'service_received') sense = `${ownerName} reçoit un service de ${tx.counterpartyName || personName}`;
+  if (tx.type === 'money_lent') sense = `${ownerName} prête de l'argent à ${contrepartie}`;
+  else if (tx.type === 'money_borrowed')
+    sense =
+      `${ownerName} achète à crédit ${tx.title} à ${contrepartie}` +
+      (tx.amount ? ` pour un montant de ${tx.amount.toLocaleString('fr-FR')} €, payable selon l'échéancier de l'article 3` : '') +
+      '.';
+  else if (tx.type === 'item_lent') sense = `${ownerName} prête un objet à ${contrepartie}`;
+  else if (tx.type === 'item_borrowed') sense = `${ownerName} emprunte un objet à ${contrepartie}`;
+  else if (tx.type === 'service_done') sense = `${ownerName} rend un service à ${contrepartie}`;
+  else if (tx.type === 'service_received') sense = `${ownerName} reçoit un service de ${contrepartie}`;
 
   const formatAmount = (n: number) =>
     n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -54,6 +77,14 @@ const ContractDocument: React.FC<ContractDocumentProps> = ({
     : tx.installmentFrequency === 'monthly' ? 'mensuelle'
     : tx.installmentFrequency === 'quarterly' ? 'trimestrielle'
     : '—';
+
+  // La signature "owner" appartient a la Partie B quand le createur est debiteur
+  const sigA = tx.signatures?.find((s: any) =>
+    ownerIsDebtor ? s.signerRole === 'counterparty' : s.signerRole === 'owner'
+  );
+  const sigB = tx.signatures?.find((s: any) =>
+    ownerIsDebtor ? s.signerRole === 'owner' : s.signerRole === 'counterparty'
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 space-y-5 max-w-2xl mx-auto">
@@ -73,15 +104,14 @@ const ContractDocument: React.FC<ContractDocumentProps> = ({
         <h3 className="font-bold text-gray-900 mb-2">Article 1 — Les parties</h3>
         <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
           <p>
-            <span className="font-semibold">Partie A (créancier/prêteur) :</span>{' '}
-            {ownerName} <span className="text-gray-500">&lt;{tx.ownerEmail}&gt;</span>
+            <span className="font-semibold">Partie A ({partieA.role}) :</span>{' '}
+            {partieA.name}{' '}
+            {partieA.email && <span className="text-gray-500">&lt;{partieA.email}&gt;</span>}
           </p>
           <p>
-            <span className="font-semibold">Partie B (débiteur/emprunteur) :</span>{' '}
-            {tx.counterpartyName || personName}
-            {tx.counterpartyEmail && (
-              <span className="text-gray-500"> &lt;{tx.counterpartyEmail}&gt;</span>
-            )}
+            <span className="font-semibold">Partie B ({partieB.role}) :</span>{' '}
+            {partieB.name}{' '}
+            {partieB.email && <span className="text-gray-500">&lt;{partieB.email}&gt;</span>}
           </p>
         </div>
       </section>
@@ -180,14 +210,8 @@ const ContractDocument: React.FC<ContractDocumentProps> = ({
       <section className="border-t border-gray-200 pt-4">
         <h3 className="font-bold text-gray-900 mb-3">Signatures numériques</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <SignatureSlot
-            label={`Partie A — ${ownerName}`}
-            signature={tx.signatures?.find((s: any) => s.signerRole === 'owner')}
-          />
-          <SignatureSlot
-            label={`Partie B — ${tx.counterpartyName || personName}`}
-            signature={tx.signatures?.find((s: any) => s.signerRole === 'counterparty')}
-          />
+          <SignatureSlot label={`Partie A — ${partieA.name}`} signature={sigA} />
+          <SignatureSlot label={`Partie B — ${partieB.name}`} signature={sigB} />
         </div>
       </section>
 
@@ -219,11 +243,15 @@ const SignatureSlot: React.FC<{ label: string; signature?: any }> = ({ label, si
       <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1">
         {label}
       </p>
-      <img
-        src={signature.signaturePng}
-        alt={`Signature de ${signature.signerName}`}
-        className="h-20 mx-auto bg-white rounded"
-      />
+      {signature.signaturePng ? (
+        <img
+          src={signature.signaturePng}
+          alt={`Signature de ${signature.signerName}`}
+          className="h-20 mx-auto bg-white rounded"
+        />
+      ) : (
+        <p className="text-xs text-green-700 italic py-4">Signé (contrat d'origine)</p>
+      )}
       <p className="text-[10px] text-gray-500 mt-1">
         {signature.signerName} · {new Date(signature.signedAt).toLocaleDateString('fr-FR')}
       </p>
@@ -243,8 +271,21 @@ export function generateContractText(
   lines.push(`Référence : ${tx._id?.slice(-8).toUpperCase() || 'N/A'}`);
   lines.push(`Date : ${new Date(tx.startDate).toLocaleDateString('fr-FR')}`);
   lines.push('');
-  lines.push(`Partie A (créancier) : ${ownerName} <${tx.ownerEmail}>`);
-  lines.push(`Partie B (débiteur) : ${tx.counterpartyName || personName} <${tx.counterpartyEmail || 'email non renseigné'}>`);
+  const ownerIsDebtor =
+    tx.type === 'money_borrowed' ||
+    tx.type === 'item_borrowed' ||
+    tx.type === 'service_received';
+  const contrepartie = tx.counterpartyName || personName;
+  lines.push(
+    ownerIsDebtor
+      ? `Partie A (créancier) : ${contrepartie} <${tx.counterpartyEmail || 'email non renseigné'}>`
+      : `Partie A (créancier) : ${ownerName} <${tx.ownerEmail}>`
+  );
+  lines.push(
+    ownerIsDebtor
+      ? `Partie B (débiteur) : ${ownerName} <${tx.ownerEmail}>`
+      : `Partie B (débiteur) : ${contrepartie} <${tx.counterpartyEmail || 'email non renseigné'}>`
+  );
   lines.push('');
   lines.push(`Objet : ${tx.title}`);
   if (tx.amount) lines.push(`Montant : ${tx.amount} ${tx.currency || 'EUR'}`);

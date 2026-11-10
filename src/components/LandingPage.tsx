@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 import { SignIn } from '@clerk/clerk-react';
 import {
-  HandCoins, Banknote, Package, Wrench, ShieldCheck, Smartphone, Bell,
-  TrendingUp, Users as UsersIcon, CheckCircle2, ChevronRight, X,
-  Mail, Lock, LogIn,
+  Wallet, Calendar, ShieldCheck, Smartphone, CheckCircle2, ChevronRight, X,
+  LogIn,
 } from 'lucide-react';
 
 /**
- * LandingPage — Page d'accueil marketing de Suivi-dette.
+ * LandingPage — Page d'accueil de Suivi-dette.
  *
  * Affichée quand l'user n'est PAS authentifié. Propose :
- *  - Hero avec proposition de valeur
- *  - 4 features clés (argent, objets, services, multi-perspectives)
+ *  - Hero centré sur la dette (camion pizza)
+ *  - 4 points clés (solde, échéances, versements signés, contrat privé)
  *  - "Comment ça marche" en 3 étapes
  *  - CTA : bouton "Se connecter" qui ouvre le SignIn Clerk en modale
  *
- * Quand l'user est signé, on redirige automatiquement vers PizzaTruckPage
- * (géré par App.tsx).
+ * Quand l'user est signé, App.tsx affiche l'app de suivi de la dette.
  */
 const LandingPage: React.FC = () => {
   const { isSignedIn } = useUser();
@@ -35,7 +33,7 @@ const LandingPage: React.FC = () => {
       <header className="bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">💰</span>
+            <span className="text-2xl">🚚</span>
             <h1 className="text-lg font-bold text-gray-900">Suivi-dette</h1>
           </div>
           <button
@@ -51,23 +49,23 @@ const LandingPage: React.FC = () => {
       {/* === HERO === */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
         <div className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold mb-4">
-          ✨ Tracker de prêts entre particuliers
+          🚚 Le suivi de la dette du camion pizza
         </div>
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 mb-4 leading-tight">
-          Ne perds plus le fil
+          Le chemin de la dette,
           <br />
-          de <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">tes prêts</span>.
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">échéance après échéance</span>.
         </h1>
         <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-          Argent, objets ou services : suis chaque prêt en 30 secondes.
-          Rappels automatiques, soldes en temps réel, zéro tracas.
+          Un achat à crédit, un plan de remboursement clair, et chaque versement
+          confirmé d'un clic par les deux parties.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => setShowSignIn(true)}
             className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl font-bold text-lg shadow-lg flex items-center gap-2"
           >
-            Commencer gratuitement
+            Suivre ma dette
             <ChevronRight className="w-5 h-5" />
           </button>
           <a
@@ -85,36 +83,36 @@ const LandingPage: React.FC = () => {
       {/* === FEATURES === */}
       <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-3">
-          4 types de prêts, 1 seule app
+          Tout tient sur un seul écran
         </h2>
         <p className="text-center text-gray-600 mb-10 max-w-xl mx-auto">
-          Que ce soit du cash, une perceuse prêtée ou 3h de ménage,
-          tout est tracé au même endroit.
+          Pas d'onglets à fouiller, pas de tableur : le reste à payer, la prochaine
+          échéance et l'historique sont toujours visibles.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <FeatureCard
-            icon={<HandCoins className="w-6 h-6" />}
-            color="bg-green-100 text-green-600"
-            title="Argent prêté"
-            desc="Suis les remboursements partiels, marque les mensualités, clôture en un clic."
-          />
-          <FeatureCard
-            icon={<Banknote className="w-6 h-6" />}
+            icon={<Wallet className="w-6 h-6" />}
             color="bg-red-100 text-red-600"
-            title="Argent emprunté"
-            desc="Sois honnête avec toi-même : vois ce que tu dois et à qui."
+            title="Le solde en un coup d'œil"
+            desc="Le reste à payer, le total et le pourcentage remboursé, calculés en direct."
           />
           <FeatureCard
-            icon={<Package className="w-6 h-6" />}
-            color="bg-amber-100 text-amber-600"
-            title="Objets prêtés"
-            desc="Perceuse, livre, tente... plus jamais d'objet égaré."
+            icon={<Calendar className="w-6 h-6" />}
+            color="bg-orange-100 text-orange-600"
+            title="Les échéances"
+            desc="Mensualité, date de la prochaine, fin prévue : le plan est limpide."
           />
           <FeatureCard
-            icon={<Wrench className="w-6 h-6" />}
-            color="bg-blue-100 text-blue-600"
-            title="Services rendus"
-            desc="Déménagement, cours, dépannage : convertis en heures ou en €."
+            icon={<CheckCircle2 className="w-6 h-6" />}
+            color="bg-green-100 text-green-600"
+            title="Des versements signés"
+            desc="Chaque versement est confirmé par la signature de la contrepartie."
+          />
+          <FeatureCard
+            icon={<ShieldCheck className="w-6 h-6" />}
+            color="bg-purple-100 text-purple-600"
+            title="Un contrat privé"
+            desc="Le contrat est généré et signé par les deux parties, via un lien privé."
           />
         </div>
       </section>
@@ -134,14 +132,14 @@ const LandingPage: React.FC = () => {
             />
             <Step
               num={2}
-              title="Ajoute une personne"
-              desc="Un nom suffit. Optionnel : email, téléphone, notes pour te rappeler qui c'est."
-              icon={<UsersIcon className="w-5 h-5" />}
+              title="L'échéancier est déjà prêt"
+              desc="30 000 €, 500 € par mois, et le détail de ce qui a déjà été versé."
+              icon={<Calendar className="w-5 h-5" />}
             />
             <Step
               num={3}
-              title="Crée ta transaction"
-              desc="Choisis le type (argent, objet, service), le montant, l'échéance. Terminé !"
+              title="Tu valides les versements"
+              desc="Un clic quand tu paies, un lien de confirmation envoyé à l'autre partie."
               icon={<CheckCircle2 className="w-5 h-5" />}
             />
           </div>
@@ -160,14 +158,14 @@ const LandingPage: React.FC = () => {
             desc="Conçu pour ton téléphone. S'ajoute à ton écran d'accueil comme une vraie app."
           />
           <Benefit
-            icon={<Bell className="w-6 h-6" />}
-            title="Rappels intelligents"
-            desc="Notifications avant chaque échéance. Plus jamais de prêt oublié."
+            icon={<CheckCircle2 className="w-6 h-6" />}
+            title="Chaque versement horodaté"
+            desc="Montant, date, note : l'historique se construit tout seul, sans effort."
           />
           <Benefit
             icon={<ShieldCheck className="w-6 h-6" />}
             title="Privé et sécurisé"
-            desc="Tes données sont chiffrées. Tu es le seul à voir tes transactions."
+            desc="Seuls Freddy et Francky voient la dette. Les liens de signature sont privés."
           />
         </div>
       </section>
@@ -176,16 +174,16 @@ const LandingPage: React.FC = () => {
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
         <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl shadow-2xl p-8 sm:p-12 text-white">
           <h2 className="text-3xl sm:text-4xl font-extrabold mb-3">
-            Prêt à reprendre le contrôle ?
+            Prêt à tout avoir en clair ?
           </h2>
           <p className="text-lg opacity-90 mb-6 max-w-md mx-auto">
-            Rejoins Suivi-dette et arrête de compter de tête.
+            Connecte-toi et arrête de compter de tête.
           </p>
           <button
             onClick={() => setShowSignIn(true)}
             className="px-8 py-4 bg-white hover:bg-gray-100 text-orange-600 rounded-xl font-bold text-lg shadow-lg inline-flex items-center gap-2"
           >
-            Créer mon compte gratuit
+            Ouvrir mon suivi de dette
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -195,7 +193,7 @@ const LandingPage: React.FC = () => {
       <footer className="bg-white/60 border-t border-orange-100 py-6">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center text-sm text-gray-600">
           <p>
-            💰 <span className="font-semibold">Suivi-dette</span> — Tracker de prêts entre particuliers
+            🚚 <span className="font-semibold">Suivi-dette</span> — Le suivi de la dette, simplement
           </p>
           <p className="text-xs text-gray-500 mt-1">
             © 2026 Suivi-dette · Fait avec ❤️ en France
