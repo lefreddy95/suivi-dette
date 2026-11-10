@@ -118,6 +118,20 @@ function buildSchedule(tx: {
 }
 
 /**
+ * getSiteUrl — URL publique du site (lue dans l'env Convex).
+ * Sert a verifier que les liens partages pointent sur le bon site.
+ */
+export const getSiteUrl = query({
+  args: {},
+  handler: async () => {
+    return {
+      siteUrl: process.env.CONVEX_SITE_URL || null,
+      convexSiteUrl: process.env.VITE_CONVEX_SITE_URL || null,
+    };
+  },
+});
+
+/**
  * getDebtOverview — Vue complete de la dette unique.
  *
  * Accessible par les 2 parties (Freddy le debiteur, Francky le creancier) :
