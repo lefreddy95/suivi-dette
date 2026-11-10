@@ -124,13 +124,17 @@ function buildSchedule(tx: {
 export const getSiteUrl = query({
   args: {},
   handler: async () => {
-    const safe: Record<string, string> = {};
-    for (const [k, v] of Object.entries(process.env)) {
-      if (!/SITE|URL|HOST|DOMAIN/i.test(k)) continue;
-      if (/KEY|SECRET|TOKEN|PASSWORD/i.test(k)) { safe[k] = '***'; continue; }
-      safe[k] = v ?? '';
+    const names = [
+      'CONVEX_SITE_URL', 'VITE_CONVEX_SITE_URL', 'SITE_URL', 'NETLIFY_SITE_URL',
+      'PUBLIC_URL', 'APP_URL', 'URL', 'HOST', 'DOMAIN', 'CUSTOM_DOMAIN',
+      'VITE_SITE_URL', 'VITE_URL', 'PUSHBULLET_WORKER_URL', 'NETLIFY_URL',
+    ];
+    const out: Record<string, string> = {};
+    for (const n of names) {
+      const v = process.env[n];
+      if (v) out[n] = v;
     }
-    return safe;
+    return out;
   },
 });
 
