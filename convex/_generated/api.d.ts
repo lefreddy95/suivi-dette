@@ -10,8 +10,6 @@
 
 import type * as debt from "../debt.js";
 import type * as loans from "../loans.js";
-import type * as migrate from "../migrate.js";
-import type * as pizza from "../pizza.js";
 
 import type {
   ApiFromModules,
@@ -22,8 +20,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   debt: typeof debt;
   loans: typeof loans;
-  migrate: typeof migrate;
-  pizza: typeof pizza;
 }>;
 
 /**

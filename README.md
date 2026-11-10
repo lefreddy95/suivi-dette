@@ -1,6 +1,6 @@
 # Suivi-dette
 
-App de suivi de prêts entre particuliers. Suivez chaque prêt d'argent, d'objet ou de service en quelques secondes, avec preuves de signature, échéancier de remboursement et rappels.
+App de suivi de la dette du camion pizza : Freddy a acheté le camion à crédit à son frère Francky (30 000 €), a déjà versé 5 000 € en septembre et 500 € en octobre. L'app suit **cette seule dette** : reste a payer, prochaine echeance, echeancier complet, historique des versements et contrat signe par les deux parties.
 
 **Stack** : Vite + React + TypeScript · Convex (backend + DB réactive) · Clerk (auth) · Tailwind CSS · PWA installable.
 
@@ -8,22 +8,23 @@ App de suivi de prêts entre particuliers. Suivez chaque prêt d'argent, d'objet
 
 ## 🎯 Fonctionnalités
 
-### Suivi multi-catégorie (6 types de transactions)
+### Une seule dette, un seul écran
 
-- 💰 **Argent prêté** — tu prêtes, on te doit
-- 💸 **Argent emprunté** — tu empruntes, tu dois
-- 📦 **Objet prêté** — perceuse, livre, tente...
-- 📥 **Objet emprunté** — à rendre
-- 🔧 **Service rendu** — déménagement, cours, dépannage
-- 🙋 **Service reçu** — on t'a rendu un service
+- **Reste à payer** en gros, avec le total, le montant versé et le % remboursé
+- **Prochaine échéance** en un coup d'œil (montant, date, n° d'échéance)
+- Bouton **« J'ai payé cette échéance »** (prérempli) + versement libre
+- **Échéancier complet** repliable (49 mensualités de 500 €)
+- **Historique des versements** (montant, date, note, confirmation signée)
+- **Contrat** : signatures des 2 parties, lien privé, invitation SMS/WhatsApp
+- **Timeline** des événements (versements, signatures, invitations)
 
-### Échéancier de remboursement (money_)
+### Échéancier de remboursement
 
 - Fréquence : hebdo / bi-mensuel / mensuel / trimestriel
-- Calcul auto du nombre d'échéances (montant total ÷ montant / échéance)
-- Aperçu live des 3 prochaines échéances
-- Badge "prochaine échéance" dans la fiche personne
-- 🎉 Alerte "Échéancier terminé" quand tout est remboursé
+- Calcul auto du nombre d'échéances (montant total ÷ montant d'échéance)
+- Un acompte versé avant la 1re échéance reste hors échéancier (pas compté en double)
+- Échéance en retard signalée automatiquement
+- Plan modifiable depuis Paramètres (montant, date de départ, nombre d'échéances)
 
 ### Preuves & signatures (2 parties)
 
@@ -47,13 +48,10 @@ Chaque transaction peut être signée par les 2 parties (toi + contrepartie) :
 - ✏️ Numéro et message **éditables** dans la modale avant envoi
 - 📅 **Timeline d'événements** : trace chaque envoi / signature / remboursement
 
-### Dashboard & insights
+### Perspective selon le lecteur
 
-- Hero card "À l'équilibre / On te doit / Tu dois"
-- 4 stats rapides (items prêtés, services, en cours, remboursé)
-- Prochaines échéances (30 jours)
-- Activité récente
-- **Intégration dette camion pizza** (legacy) en carte ambre
+- Freddy (débiteur) : « Il te reste 24 500 € à payer à Francky »
+- Francky (créancier) : « Freddy te doit 24 500 € »
 
 ### Mode multi-tenant (whitelist temporaire)
 
@@ -73,53 +71,48 @@ Chaque transaction peut être signée par les 2 parties (toi + contrepartie) :
 
 ```
 src/
-├── App.tsx                      # Routeur racine (3 routes)
+├── App.tsx                      # Routeur racine
 ├── main.tsx                     # Entry point (Clerk + Convex)
 ├── components/
-│   ├── LandingPage.tsx          # Page marketing (non signé)
+│   ├── LandingPage.tsx          # Page marketing (non signe)
 │   ├── ErrorBoundary.tsx        # Catch runtime errors
-│   └── pizza/                   # Module legacy "Suivi Camion"
-│       ├── PizzaTruckPage.tsx   # Page principale (camion)
-│       ├── ContractPage.tsx     # Contrat signable
-│       ├── SettingsPage.tsx     # Paramètres (admin)
-│       ├── PizzaTruckAnimation.tsx
-│       └── pizza-animations.css
-└── components/loans/            # Module "Suivi-dette" (Kuidi)
-    ├── DashboardPage.tsx        # Home / stats
-    ├── PeoplePage.tsx           # Liste des personnes
-    ├── PersonDetailPage.tsx     # Fiche personne + transactions + timeline
-    ├── TransactionsPage.tsx     # Liste globale transactions + filtres
-    ├── TransactionFormModal.tsx # Modale création (6 types + échéancier)
+│   └── pizza/                   # Ancienne UI "Suivi Camion" (archivée)
+└── components/loans/            # App mono-dette
+    ├── DebtApp.tsx              # Coquille (auth, nav, routing)
+    ├── DebtHomePage.tsx         # LA page : solde, échéance, échéancier, versements, contrat
+    ├── DebtSettingsPage.tsx     # Paramètres (compte, plan de remboursement, sécurité)
+    ├── RepaymentModal.tsx        # Enregistrer un versement (plein écran)
     ├── SignInviteModal.tsx      # Modale envoi SMS/WhatsApp
     ├── SignaturePad.tsx         # Canvas signature
     ├── ContractDocument.tsx     # Rendu contrat auto-généré
-    └── PublicTransactionPage.tsx # /transaction/:token (sans auth)
+    ├── PublicTransactionPage.tsx # /transaction/:token (sans auth)
+    ├── RepaymentSignPage.tsx    # /repayment/:signToken (sans auth)
+    └── _legacy/                 # Anciennes pages du tracker générique (hors bundle)
 
 convex/
-├── schema.ts                    # 7 tables (pizzaConfig, pizzaPayments, pizzaAuditLog, people, transactions, reminders, ...)
-├── pizza.ts                     # Backend legacy (camion)
-└── loans.ts                     # Backend Kuidi (people, transactions, public, sendInvite, logEvent)
+├── schema.ts                    # 3 tables (people, transactions, reminders)
+├── debt.ts                      # getDebtOverview : la dette unique en lecture
+└── loans.ts                     # people, transactions, signatures, invitations, SMS
 ```
 
-### Tables Convex (7)
+### Tables Convex (3)
 
-| Table | Rôle | Cycle de vie |
+| Table | Role | Cycle de vie |
 |---|---|---|
-| `pizzaConfig` | Config singleton (prix, mensualité, dates, signatures contrat) | Actif (legacy) |
-| `pizzaPayments` | 60 mensualités du camion + ponctuel | Actif (legacy) |
-| `pizzaAuditLog` | Traçabilité juridique de chaque action | Actif (legacy) |
-| `people` | Contacts du user (multi-tenant par ownerEmail) | Actif |
-| `transactions` | Toutes les transactions (6 types + échéancier + signatures + events) | Actif |
+| `people` | Contacts du user (multi-tenant par ownerEmail) — ici : Francky | Actif |
+| `transactions` | La dette (type, montant, échéancier, remboursements, signatures, events) | Actif |
 | `reminders` | Notifications à venir (rappels échéances) | Préparé, UI Phase 2 |
 
-### Routing (`App.tsx`)
+> Les tables legacy `pizzaConfig` / `pizzaPayments` / `pizzaAuditLog` ont été
+> vidées puis retirées du schéma (les données ont été migrées vers
+> `transactions`). Le code historique est archivé dans `legacy/convex/`.
 
 ```
-/                          → LandingPage (si non signé) ou PizzaTruckPage (si signé)
-/transaction/:token        → PublicTransactionPage (sans auth, page partageable)
+/                          -> LandingPage (si non signe) ou DebtApp (si signe)
+/parametres                -> DebtSettingsPage (admin)
+/transaction/:token        -> PublicTransactionPage (sans auth, page partageable)
+/repayment/:signToken      -> RepaymentSignPage (sans auth, confirmation de versement)
 ```
-
----
 
 ## 🚀 Setup local
 
@@ -197,15 +190,20 @@ Hébergé sur **Netlify** : `https://suivi-dette.netlify.app`
 
 ---
 
-## 🧪 Tests manuels
-
 ```bash
-# Vérifier que le build passe
+# Vérifier que le build + le typecheck passent
 npm run build
+npx tsc --noEmit -p tsconfig.app.json
 
-# Tester une migration DB
-# Aller dans Paramètres → Section "Migration Kuidi" → Cliquer "Migrer la transaction camion"
+# Inspecter la base Convex déployée (lecture seule)
+node scripts/inspect-db.mjs
 ```
+
+Tests manuels :
+1. Se connecter → l'écran affiche « 24 500 € » en reste à payer
+2. Cliquer « J'ai payé cette échéance » → le solde baisse, le versement apparaît
+3. Copier le lien de confirmation → l'ouvrir → signer (public, sans compte)
+4. Vérifier que la 1re échéance est bien le 7 novembre 2026
 
 ---
 
@@ -232,6 +230,12 @@ npm run build
 - Stripe (free vs pro)
 - Suppression du mode test 1234
 
+### Phase 5 — App mono-dette ✅
+- Migration des données legacy `pizzaConfig` / `pizzaPayments` → une transaction
+- Nouvelle UI : `DebtApp` / `DebtHomePage` / `RepaymentModal` / `DebtSettingsPage`
+- Pages du tracker générique archivées dans `src/components/loans/_legacy/`
+- Tables legacy retirées du schéma Convex
+
 ### Phase 4 — UX avancée
 - Rappels/notifs push (table `reminders` déjà prête)
 - Photo rapide d'objet
@@ -241,11 +245,13 @@ npm run build
 
 ---
 
-## 🧰 Scripts
-
 | Script | Usage |
 |---|---|
-| `scripts/generate-pwa-icons.py` | Regénère les 5 icônes PWA + favicon SVG (design : € sur gradient) |
+| `scripts/generate-pwa-icons.py` | Régénère les 5 icônes PWA + favicon SVG |
+| `scripts/inspect-db.mjs` | Lit la base Convex déployée (config legacy, people, transactions) |
+| `scripts/inspect-new.mjs` | Lit seulement `people` / `transactions` / `getDashboard` |
+| `scripts/check-deploy.mjs` | Vérifie que la query `debt:getDebtOverview` est déployée |
+| `scripts/cleanup-legacy.mjs` | Vide les tables legacy (à lancer avant de les retirer du schéma) |
 
 ---
 

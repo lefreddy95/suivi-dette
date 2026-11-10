@@ -3,7 +3,7 @@ import { useUser, useClerk } from '@clerk/clerk-react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
-  ArrowLeft, User, Mail, LogOut, ShieldCheck, HelpCircle, Wrench,
+  ArrowLeft, User, Mail, LogOut, ShieldCheck, HelpCircle,
   AlertTriangle, Check, Info, Calendar, Wallet,
 } from 'lucide-react';
 
@@ -37,7 +37,6 @@ const DebtSettingsPage: React.FC<DebtSettingsPageProps> = ({
   const { openUserProfile } = useClerk();
   const overview = useQuery(api.debt.getDebtOverview, { userEmail });
   const updateMut = useMutation(api.loans.updateTransaction);
-  const migrateMut = useMutation(api.migrate.migrateLegacyPizzaToSingleDebt);
 
   const debt = overview?.debt;
   const [monthly, setMonthly] = useState('');
@@ -205,34 +204,6 @@ const DebtSettingsPage: React.FC<DebtSettingsPageProps> = ({
           </span>
         </div>
       </section>
-
-      {/* === OUTILS ADMIN (migration one-off) === */}
-      {isAdmin && (
-        <section className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5 space-y-3">
-          <h2 className="text-sm font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-            <Wrench className="w-4 h-4" />
-            Outils (admin)
-          </h2>
-          <p className="text-xs text-blue-800">
-            Migration des anciennes donnees « camion pizza » vers la dette unique.
-            A utiliser une seule fois.
-          </p>
-          <button
-            onClick={async () => {
-              try {
-                const res = await migrateMut({ userEmail });
-                alert(res.message || (res.migrated ? 'Migration OK' : 'Rien a faire'));
-              } catch (e) {
-                alert('Erreur : ' + (e instanceof Error ? e.message : 'inconnue'));
-              }
-            }}
-            className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
-          >
-            <Wrench className="w-4 h-4" />
-            Migrer les anciennes donnees
-          </button>
-        </section>
-      )}
 
       {/* === SECURITE === */}
       <section className="bg-white rounded-2xl shadow-lg p-5 space-y-3">

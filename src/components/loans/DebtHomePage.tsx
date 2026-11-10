@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import SignInviteModal from './SignInviteModal';
 import RepaymentModal from './RepaymentModal';
@@ -38,7 +38,6 @@ interface DebtHomePageProps {
  */
 const DebtHomePage: React.FC<DebtHomePageProps> = ({ userEmail, onOpenSettings }) => {
   const data = useQuery(api.debt.getDebtOverview, { userEmail });
-  const migrateMut = useMutation(api.migrate.migrateLegacyPizzaToSingleDebt);
   const [showRepayment, setShowRepayment] = useState(false);
   const [repaymentPreset, setRepaymentPreset] = useState<{ amount?: number; note?: string }>({});
   const [showInvite, setShowInvite] = useState(false);
@@ -74,22 +73,10 @@ const DebtHomePage: React.FC<DebtHomePageProps> = ({ userEmail, onOpenSettings }
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Aucune dette enregistrée</h1>
         <p className="text-sm text-gray-600 mb-4">
-          Les données du contrat camion pizza (30 000 €, 500 €/mois, 5 000 € versés en
-          septembre et 500 € en octobre) doivent être migrées une première fois.
+          La dette du camion pizza (30 000 €, 500 €/mois, 5 000 € versés en septembre
+          et 500 € en octobre) n'apparaît pas encore en base. Contacte l'administrateur
+          pour la remettre en place.
         </p>
-        <button
-          onClick={async () => {
-            try {
-              const res = await migrateMut({ userEmail });
-              alert(res.message || (res.migrated ? 'Migration OK' : 'Rien a faire'));
-            } catch (e) {
-              alert('Erreur : ' + (e instanceof Error ? e.message : 'inconnue'));
-            }
-          }}
-          className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg font-semibold"
-        >
-          Migrer la dette du camion pizza
-        </button>
       </div>
     );
   }
